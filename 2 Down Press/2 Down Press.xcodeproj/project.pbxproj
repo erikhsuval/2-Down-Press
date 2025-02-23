@@ -1,0 +1,401 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0A5B5CFC0B2EFB20CE3F9297 /* DoDaSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75B2AA34AA438A4F3B422C37 /* DoDaSetupView.swift */; };
+		11A6CE25DE6110152F5A633B /* AlabamaSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FACACB54CC7F4F9E57962155 /* AlabamaSetupView.swift */; };
+		30FBA675CF6FD881EB448442 /* BetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABC2421A3511929E3EED5E5D /* BetModels.swift */; };
+		56CCE6904B5FF81FBA2A6BB8 /* BetComponents in Frameworks */ = {isa = PBXBuildFile; productRef = F3DCB4C5C228CDE6F03A12BA /* BetComponents */; };
+		5712B433581E676BDA30E7A7 /* GolfModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E10BF4F97F613D9934BAC4 /* GolfModels.swift */; };
+		5C6D7768C7411FEA7241F93A /* BetSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3D4B92A017293345754994E /* BetSections.swift */; };
+		69B4D4D1E3B84B5D9A2B8BAD /* SkinsSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0591F10BE0CF22F61AAE1C /* SkinsSetupView.swift */; };
+		6E0C752CA8B9483A5EE2B5D1 /* PlayerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232B6C8546E1B06ED3D7809D /* PlayerModels.swift */; };
+		70C664B322CD673998DB14DB /* BetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 057EBB8E3D8CAFB5CD56A636 /* BetViews.swift */; };
+		78805BC96A3483605CACCB3A /* ColorExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2C1BF79B4F3475413C0152 /* ColorExtensions.swift */; };
+		7D214F77BEB67331341C7E67 /* PlayerBetDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10D7730D293FF632966D2DB7 /* PlayerBetDetailsView.swift */; };
+		88333C9EF2A878743E7E6190 /* AcesSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C6C3B02DEB654F9EE3A6CC5 /* AcesSetupView.swift */; };
+		9DBDEC291827F73C3221AAB3 /* FourBallMatchSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A878BF79EA805049D0000435 /* FourBallMatchSetupView.swift */; };
+		A5755B7E71B05015449BFC86 /* MenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB51D74A4DE3F6456E1DC087 /* MenuView.swift */; };
+		AE36857CFDC51B75A6E2E142 /* IndividualMatchSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C675570F0FB1D6526F3F0264 /* IndividualMatchSetupView.swift */; };
+		B926BE90F1268D65CCD93D5C /* TheSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420DCCF5AFA4E0645C54F7C8 /* TheSheetView.swift */; };
+		C9F1E03D575FA15D2EF56506 /* BetAmountField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5583C7ABDF39750296475E80 /* BetAmountField.swift */; };
+		D50318072DEBF777DA707721 /* BetComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3A8E850BB435E4F15785E53 /* BetComponents.swift */; };
+		D83CABB688232D993660D63E /* MyBetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EC783410BD84A0EA78E1427 /* MyBetsView.swift */; };
+		ED01D8EA2F7746A75A7097F0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3555DD186BF4988B9BF0784 /* ContentView.swift */; };
+		EFEBC8B1F00AC1AAAA597223 /* BetPlayerSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E862AFCF39CF7AAC041AE57 /* BetPlayerSelectionView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		057EBB8E3D8CAFB5CD56A636 /* BetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetViews.swift; sourceTree = "<group>"; };
+		10D7730D293FF632966D2DB7 /* PlayerBetDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerBetDetailsView.swift; sourceTree = "<group>"; };
+		1EC783410BD84A0EA78E1427 /* MyBetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyBetsView.swift; sourceTree = "<group>"; };
+		232B6C8546E1B06ED3D7809D /* PlayerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerModels.swift; sourceTree = "<group>"; };
+		2E862AFCF39CF7AAC041AE57 /* BetPlayerSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetPlayerSelectionView.swift; sourceTree = "<group>"; };
+		420DCCF5AFA4E0645C54F7C8 /* TheSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TheSheetView.swift; sourceTree = "<group>"; };
+		4A2C1BF79B4F3475413C0152 /* ColorExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorExtensions.swift; sourceTree = "<group>"; };
+		4C6C3B02DEB654F9EE3A6CC5 /* AcesSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcesSetupView.swift; sourceTree = "<group>"; };
+		5583C7ABDF39750296475E80 /* BetAmountField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetAmountField.swift; sourceTree = "<group>"; };
+		75B2AA34AA438A4F3B422C37 /* DoDaSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoDaSetupView.swift; sourceTree = "<group>"; };
+		7D0591F10BE0CF22F61AAE1C /* SkinsSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkinsSetupView.swift; sourceTree = "<group>"; };
+		896CE51545FE37AD28CFB453 /* BetComponents */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BetComponents; path = BetComponents; sourceTree = SOURCE_ROOT; };
+		96E10BF4F97F613D9934BAC4 /* GolfModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GolfModels.swift; sourceTree = "<group>"; };
+		A878BF79EA805049D0000435 /* FourBallMatchSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FourBallMatchSetupView.swift; sourceTree = "<group>"; };
+		ABC2421A3511929E3EED5E5D /* BetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetModels.swift; sourceTree = "<group>"; };
+		B3A8E850BB435E4F15785E53 /* BetComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetComponents.swift; sourceTree = "<group>"; };
+		C1EE675842B86B9CA9394496 /* 2 Down Press.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "2 Down Press.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C675570F0FB1D6526F3F0264 /* IndividualMatchSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndividualMatchSetupView.swift; sourceTree = "<group>"; };
+		D3D4B92A017293345754994E /* BetSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetSections.swift; sourceTree = "<group>"; };
+		DB51D74A4DE3F6456E1DC087 /* MenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuView.swift; sourceTree = "<group>"; };
+		E3555DD186BF4988B9BF0784 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		FACACB54CC7F4F9E57962155 /* AlabamaSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlabamaSetupView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		9E3EE1D16902A80206BB319D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				56CCE6904B5FF81FBA2A6BB8 /* BetComponents in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		000CC763BD9CD8D2C824026C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C1EE675842B86B9CA9394496 /* 2 Down Press.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		0856B8A36A9558B9CD9EFE21 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				896CE51545FE37AD28CFB453 /* BetComponents */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		20CD4B06A61B0BEA3D5AB48B /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				ABC2421A3511929E3EED5E5D /* BetModels.swift */,
+				96E10BF4F97F613D9934BAC4 /* GolfModels.swift */,
+				232B6C8546E1B06ED3D7809D /* PlayerModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		2767F08109041EF77CC142E9 = {
+			isa = PBXGroup;
+			children = (
+				20CD4B06A61B0BEA3D5AB48B /* Models */,
+				0856B8A36A9558B9CD9EFE21 /* Packages */,
+				FFD9D0884C5D21350105F06F /* Views */,
+				000CC763BD9CD8D2C824026C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FFD9D0884C5D21350105F06F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				4C6C3B02DEB654F9EE3A6CC5 /* AcesSetupView.swift */,
+				FACACB54CC7F4F9E57962155 /* AlabamaSetupView.swift */,
+				5583C7ABDF39750296475E80 /* BetAmountField.swift */,
+				B3A8E850BB435E4F15785E53 /* BetComponents.swift */,
+				2E862AFCF39CF7AAC041AE57 /* BetPlayerSelectionView.swift */,
+				D3D4B92A017293345754994E /* BetSections.swift */,
+				057EBB8E3D8CAFB5CD56A636 /* BetViews.swift */,
+				4A2C1BF79B4F3475413C0152 /* ColorExtensions.swift */,
+				E3555DD186BF4988B9BF0784 /* ContentView.swift */,
+				75B2AA34AA438A4F3B422C37 /* DoDaSetupView.swift */,
+				A878BF79EA805049D0000435 /* FourBallMatchSetupView.swift */,
+				C675570F0FB1D6526F3F0264 /* IndividualMatchSetupView.swift */,
+				DB51D74A4DE3F6456E1DC087 /* MenuView.swift */,
+				1EC783410BD84A0EA78E1427 /* MyBetsView.swift */,
+				10D7730D293FF632966D2DB7 /* PlayerBetDetailsView.swift */,
+				7D0591F10BE0CF22F61AAE1C /* SkinsSetupView.swift */,
+				420DCCF5AFA4E0645C54F7C8 /* TheSheetView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AD0A086D06A51361BFC0AA67 /* 2 Down Press */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4F20A6EBE86E99EF6C204057 /* Build configuration list for PBXNativeTarget "2 Down Press" */;
+			buildPhases = (
+				6EE13AC8846835A8ACB0F4D9 /* Sources */,
+				9E3EE1D16902A80206BB319D /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "2 Down Press";
+			packageProductDependencies = (
+				F3DCB4C5C228CDE6F03A12BA /* BetComponents */,
+			);
+			productName = "2 Down Press";
+			productReference = C1EE675842B86B9CA9394496 /* 2 Down Press.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A0C907C59948F806A21CBCF4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 6E911FD87C83003D447DEEDA /* Build configuration list for PBXProject "2 Down Press" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 2767F08109041EF77CC142E9;
+			packageReferences = (
+				AB63F68CB60EB2CB57255011 /* XCLocalSwiftPackageReference "BetComponents" */,
+			);
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AD0A086D06A51361BFC0AA67 /* 2 Down Press */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		6EE13AC8846835A8ACB0F4D9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				88333C9EF2A878743E7E6190 /* AcesSetupView.swift in Sources */,
+				11A6CE25DE6110152F5A633B /* AlabamaSetupView.swift in Sources */,
+				C9F1E03D575FA15D2EF56506 /* BetAmountField.swift in Sources */,
+				D50318072DEBF777DA707721 /* BetComponents.swift in Sources */,
+				30FBA675CF6FD881EB448442 /* BetModels.swift in Sources */,
+				EFEBC8B1F00AC1AAAA597223 /* BetPlayerSelectionView.swift in Sources */,
+				5C6D7768C7411FEA7241F93A /* BetSections.swift in Sources */,
+				70C664B322CD673998DB14DB /* BetViews.swift in Sources */,
+				78805BC96A3483605CACCB3A /* ColorExtensions.swift in Sources */,
+				ED01D8EA2F7746A75A7097F0 /* ContentView.swift in Sources */,
+				0A5B5CFC0B2EFB20CE3F9297 /* DoDaSetupView.swift in Sources */,
+				9DBDEC291827F73C3221AAB3 /* FourBallMatchSetupView.swift in Sources */,
+				5712B433581E676BDA30E7A7 /* GolfModels.swift in Sources */,
+				AE36857CFDC51B75A6E2E142 /* IndividualMatchSetupView.swift in Sources */,
+				A5755B7E71B05015449BFC86 /* MenuView.swift in Sources */,
+				D83CABB688232D993660D63E /* MyBetsView.swift in Sources */,
+				7D214F77BEB67331341C7E67 /* PlayerBetDetailsView.swift in Sources */,
+				6E0C752CA8B9483A5EE2B5D1 /* PlayerModels.swift in Sources */,
+				69B4D4D1E3B84B5D9A2B8BAD /* SkinsSetupView.swift in Sources */,
+				B926BE90F1268D65CCD93D5C /* TheSheetView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		7CB286A5B35086A461A6C542 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erikhsu.2DownPress;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AED5D50BD7472B9493ADA33D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		F47B3C8B075F0D78635037E6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erikhsu.2DownPress;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		FEFD77AC6FB229A76FB6E6A5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4F20A6EBE86E99EF6C204057 /* Build configuration list for PBXNativeTarget "2 Down Press" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7CB286A5B35086A461A6C542 /* Debug */,
+				F47B3C8B075F0D78635037E6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6E911FD87C83003D447DEEDA /* Build configuration list for PBXProject "2 Down Press" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FEFD77AC6FB229A76FB6E6A5 /* Debug */,
+				AED5D50BD7472B9493ADA33D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		AB63F68CB60EB2CB57255011 /* XCLocalSwiftPackageReference "BetComponents" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = BetComponents;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F3DCB4C5C228CDE6F03A12BA /* BetComponents */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BetComponents;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A0C907C59948F806A21CBCF4 /* Project object */;
+}

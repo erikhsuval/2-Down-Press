@@ -1,0 +1,21 @@
+disabled_rules:
+  - trailing_whitespace
+  - line_length
+  - identifier_name
+  - force_cast
+  - force_try
+
+opt_in_rules:
+  - empty_count
+  - empty_string
+
+excluded:
+  - Pods
+  - 2 Down PressTests
+  - 2 Down PressUITests
+
+analyzer_rules:
+  - explicit_self
+
+force_cast: warning
+force_try: warning

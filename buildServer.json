@@ -1,0 +1,19 @@
+{
+	"name": "xcode build server",
+	"version": "0.2",
+	"bspVersion": "2.0",
+	"languages": [
+		"c",
+		"cpp",
+		"objective-c",
+		"objective-cpp",
+		"swift"
+	],
+	"argv": [
+		"/opt/homebrew/bin/xcode-build-server"
+	],
+	"workspace": "/Users/erikhsu/Library/Mobile Documents/com~apple~CloudDocs/Xcode Cursor/2 Down Press/2 Down Press.xcodeproj/project.xcworkspace",
+	"build_root": "/Users/erikhsu/Library/Developer/Xcode/DerivedData/2_Down_Press-hecgmcbaazdzoxbhvmxuouvzhfui",
+	"scheme": "2 Down Press",
+	"kind": "xcode"
+}
