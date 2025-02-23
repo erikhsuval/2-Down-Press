@@ -1288,7 +1288,7 @@ enum MockData {
         rating: 71.5,
         slope: 122,
         holes: Array(repeating: HoleInfo(id: UUID(), number: 1, par: 4, yardage: 400, handicap: 1), count: 18)
-    )
+    }
 }
 
 struct AddPlayersView: View {
