@@ -70,12 +70,12 @@ struct BetCreationView: View {
             }
         }
         .sheet(isPresented: $showIndividualMatchSetup) {
-            IndividualMatchSetupView()
+            IndividualMatchSetupView(selectedPlayers: selectedPlayers)
                 .environmentObject(userProfile)
                 .environmentObject(betManager)
         }
         .sheet(isPresented: $showFourBallMatchSetup) {
-            FourBallMatchSetupView()
+            FourBallMatchSetupView(selectedPlayers: selectedPlayers)
                 .environmentObject(userProfile)
                 .environmentObject(betManager)
         }

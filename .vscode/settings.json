@@ -1,5 +1,20 @@
 {
     "lldb.library": "/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Versions/A/LLDB",
     "lldb.launch.expressions": "native",
-    "sweetpad.build.xcodeWorkspacePath": "2 Down Press.xcodeproj/project.xcworkspace"
+    "sweetpad.build.xcodeWorkspacePath": "2 Down Press.xcodeproj/project.xcworkspace",
+    "swift.path.swift_driver_bin": "/usr/bin/swift",
+    "swift.path.sourcekit_lsp_bin": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/sourcekit-lsp",
+    "[swift]": {
+        "editor.formatOnSave": true
+    },
+    "swift.buildArguments": [],
+    "swift.autoGenerateLaunchConfigurations": true,
+    "swift.toolchainPath": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain",
+    "swift.path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+    "swift.swiftEnvironmentVariables": {
+        "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer"
+    },
+    "swift.diagnostics.enableOnEdit": true,
+    "swift.enableSourceKitLSP": true,
+    "swift.indexing.enableOnEdit": true
 }
