@@ -1,5 +1,6 @@
 import SwiftUI
 import BetComponents
+import os
 
 class IndividualMatchSetupViewModel: ObservableObject {
     @Published var selectedPlayer1: BetComponents.Player?
@@ -10,6 +11,7 @@ class IndividualMatchSetupViewModel: ObservableObject {
     
     private let editingBet: IndividualMatchBet?
     private var betManager: BetManager
+    private let logger = Logger(subsystem: "com.2downpress", category: "IndividualMatchSetup")
     
     init(editingBet: IndividualMatchBet? = nil, betManager: BetManager) {
         self.editingBet = editingBet
@@ -21,6 +23,7 @@ class IndividualMatchSetupViewModel: ObservableObject {
             self.perHoleAmount = bet.perHoleAmount
             self.perBirdieAmount = bet.perBirdieAmount
             self.pressOn9and18 = bet.pressOn9and18
+            logger.debug("Initialized with existing bet between \(bet.player1.firstName) and \(bet.player2.firstName)")
         }
     }
     
@@ -40,7 +43,10 @@ class IndividualMatchSetupViewModel: ObservableObject {
         guard let player1 = selectedPlayer1,
               let player2 = selectedPlayer2 else { return }
         
+        logger.debug("Creating bet between \(player1.firstName) and \(player2.firstName)")
+        
         if let existingBet = editingBet {
+            logger.debug("Deleting existing bet")
             betManager.deleteIndividualBet(existingBet)
         }
         
@@ -51,110 +57,111 @@ class IndividualMatchSetupViewModel: ObservableObject {
             perBirdieAmount: perBirdieAmount,
             pressOn9and18: pressOn9and18
         )
+        
+        logger.debug("Successfully created bet")
     }
     
     func updateBetManager(_ betManager: BetManager) {
         self.betManager = betManager
+        logger.debug("Updated BetManager reference")
     }
 }
 
 struct IndividualMatchSetupView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var betManager: BetManager
     @EnvironmentObject private var userProfile: UserProfile
     @StateObject private var viewModel: IndividualMatchSetupViewModel
     @State private var showPlayerSelection = false
     @State private var selectingForFirstPlayer = true
     let editingBet: IndividualMatchBet?
     let selectedPlayers: [BetComponents.Player]
+    let betManager: BetManager
     
-    init(editingBet: IndividualMatchBet? = nil, selectedPlayers: [BetComponents.Player]) {
+    init(editingBet: IndividualMatchBet? = nil, selectedPlayers: [BetComponents.Player], betManager: BetManager) {
         self.editingBet = editingBet
         self.selectedPlayers = selectedPlayers
-        _viewModel = StateObject(wrappedValue: IndividualMatchSetupViewModel(editingBet: editingBet, betManager: BetManager()))
+        self.betManager = betManager
+        _viewModel = StateObject(wrappedValue: IndividualMatchSetupViewModel(editingBet: editingBet, betManager: betManager))
     }
     
     var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("PLAYERS")) {
-                    Button(action: {
-                        selectingForFirstPlayer = true
-                        showPlayerSelection = true
-                    }) {
-                        PlayerSelectionButton(
-                            title: "Player 1",
-                            playerName: viewModel.selectedPlayer1?.firstName ?? "Select Player"
-                        )
-                    }
-                    
-                    Button(action: {
-                        selectingForFirstPlayer = false
-                        showPlayerSelection = true
-                    }) {
-                        PlayerSelectionButton(
-                            title: "Player 2",
-                            playerName: viewModel.selectedPlayer2?.firstName ?? "Select Player"
-                        )
-                    }
+        Form {
+            Section(header: Text("PLAYERS")) {
+                Button(action: {
+                    selectingForFirstPlayer = true
+                    showPlayerSelection = true
+                }) {
+                    PlayerSelectionButton(
+                        title: "Player 1",
+                        playerName: viewModel.selectedPlayer1?.firstName ?? "Select Player"
+                    )
                 }
                 
-                Section(header: Text("BET DETAILS")) {
-                    VStack(spacing: 16) {
-                        BetAmountField(
-                            label: "Per Hole",
-                            emoji: "⛳️",
-                            amount: Binding(
-                                get: { viewModel.perHoleAmount },
-                                set: { viewModel.perHoleAmount = $0 }
-                            )
-                        )
-                        
-                        BetAmountField(
-                            label: "Per Birdie",
-                            emoji: "🐦",
-                            amount: Binding(
-                                get: { viewModel.perBirdieAmount },
-                                set: { viewModel.perBirdieAmount = $0 }
-                            )
-                        )
-                        
-                        Toggle("Press on 9 & 18", isOn: $viewModel.pressOn9and18)
-                    }
-                    .padding(.vertical, 8)
+                Button(action: {
+                    selectingForFirstPlayer = false
+                    showPlayerSelection = true
+                }) {
+                    PlayerSelectionButton(
+                        title: "Player 2",
+                        playerName: viewModel.selectedPlayer2?.firstName ?? "Select Player"
+                    )
                 }
             }
-            .navigationTitle(viewModel.navigationTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+            
+            Section(header: Text("AMOUNTS")) {
+                HStack {
+                    Text("Per Hole")
+                    Spacer()
+                    TextField("Amount", value: $viewModel.perHoleAmount, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(viewModel.navigationTitle == "Edit Individual Match" ? "Update" : "Create") {
-                        viewModel.createBet()
-                        dismiss()
-                    }
-                    .disabled(!viewModel.isValid)
+                
+                HStack {
+                    Text("Per Birdie")
+                    Spacer()
+                    TextField("Amount", value: $viewModel.perBirdieAmount, format: .number)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
                 }
             }
-            .sheet(isPresented: $showPlayerSelection) {
-                BetPlayerSelectionView(
-                    players: selectedPlayers,
-                    selectedPlayer: selectingForFirstPlayer ? 
-                        Binding(
-                            get: { viewModel.selectedPlayer1 },
-                            set: { viewModel.selectedPlayer1 = $0 }
-                        ) :
-                        Binding(
-                            get: { viewModel.selectedPlayer2 },
-                            set: { viewModel.selectedPlayer2 = $0 }
-                        )
-                )
-                .environmentObject(userProfile)
+            
+            Section {
+                Toggle("Press on 9 & 18", isOn: $viewModel.pressOn9and18)
             }
+        }
+        .navigationTitle(viewModel.navigationTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(editingBet != nil ? "Update" : "Create") {
+                    viewModel.createBet()
+                    dismiss()
+                }
+                .disabled(!viewModel.isValid)
+            }
+        }
+        .sheet(isPresented: $showPlayerSelection) {
+            MultiPlayerSelectionView(
+                selectedPlayers: selectingForFirstPlayer ? 
+                    Binding(
+                        get: { viewModel.selectedPlayer1.map { [$0] } ?? [] },
+                        set: { players in viewModel.selectedPlayer1 = players.first }
+                    ) :
+                    Binding(
+                        get: { viewModel.selectedPlayer2.map { [$0] } ?? [] },
+                        set: { players in viewModel.selectedPlayer2 = players.first }
+                    ),
+                requiredCount: 1,
+                onComplete: { _ in },
+                allPlayers: selectedPlayers
+            )
+            .environmentObject(userProfile)
         }
         .onAppear {
             viewModel.updateBetManager(betManager)

@@ -18,7 +18,7 @@ struct MyAccountView: View {
                         TextField("Email", text: $email)
                             .keyboardType(.emailAddress)
                             .autocapitalization(.none)
-                        Text("Scorecard Name: \(String(firstName.prefix(4).uppercased()))")
+                        Text("Scorecard Name: \(firstName.uppercased())")
                             .foregroundColor(.gray)
                     }
                 }

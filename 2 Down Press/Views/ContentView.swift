@@ -8,29 +8,49 @@
 import SwiftUI
 import CoreLocation
 import BetComponents
+import os
 
 // Then LocationManager
 class LocationManager: NSObject, ObservableObject {
-    private let golfService: any GolfCourseServiceProtocol
+    private let golfService: GolfCourseServiceProtocol
+    private let logger = Logger(subsystem: "com.2downpress", category: "LocationManager")
     
     @Published var courses: [GolfCourse] = []
     @Published var isLoading = false
+    @Published var error: Error?
     
-    init(golfService: some GolfCourseServiceProtocol = GolfCourseService()) {
+    init(golfService: GolfCourseServiceProtocol = GolfCourseService()) {
         self.golfService = golfService
         super.init()
-        // Load Bayou DeSiard immediately
-        courses = [golfService.getGolfCourse()]
+        loadCourses()
+    }
+    
+    private func loadCourses() {
+        isLoading = true
+        logger.debug("Loading courses...")
+        
+        let course = golfService.getGolfCourse()
+        logger.debug("Loaded course: \(course.name) with \(course.teeBoxes.count) tee boxes")
+        courses = [course]
+        isLoading = false
+        
+        if courses.isEmpty {
+            logger.error("No courses loaded")
+            self.error = NSError(domain: "com.2downpress", code: -1, userInfo: [NSLocalizedDescriptionKey: "No courses available"])
+        }
     }
     
     func startUpdatingLocation() {
         // No-op since we're not using location services
+        // But reload courses just in case
+        loadCourses()
     }
 }
 
 class UserProfile: ObservableObject {
     @Published var currentUser: BetComponents.Player?
     private let userDefaults = UserDefaults.standard
+    private let logger = Logger(subsystem: "com.2downpress", category: "UserProfile")
         
     init() {
         loadUser()
@@ -38,16 +58,25 @@ class UserProfile: ObservableObject {
     
     func saveUser(_ player: BetComponents.Player) {
         let encoder = JSONEncoder()
-        if let encoded = try? encoder.encode(player) {
+        do {
+            let encoded = try encoder.encode(player)
             userDefaults.set(encoded, forKey: "currentUser")
             currentUser = player
+            logger.debug("Saved user: \(player.firstName) \(player.lastName)")
+        } catch {
+            logger.error("Failed to save user: \(error.localizedDescription)")
         }
     }
     
     private func loadUser() {
-        if let userData = userDefaults.data(forKey: "currentUser"),
-           let player = try? JSONDecoder().decode(BetComponents.Player.self, from: userData) {
-            currentUser = player
+        if let userData = userDefaults.data(forKey: "currentUser") {
+            do {
+                let player = try JSONDecoder().decode(BetComponents.Player.self, from: userData)
+                currentUser = player
+                logger.debug("Loaded user: \(player.firstName) \(player.lastName)")
+            } catch {
+                logger.error("Failed to load user: \(error.localizedDescription)")
+            }
         }
     }
 }

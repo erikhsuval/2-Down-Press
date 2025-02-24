@@ -2,20 +2,20 @@ disabled_rules:
   - trailing_whitespace
   - line_length
   - identifier_name
-  - force_cast
-  - force_try
+  - type_name
 
 opt_in_rules:
   - empty_count
-  - empty_string
+  - missing_docs
 
 excluded:
   - Pods
-  - 2 Down PressTests
-  - 2 Down PressUITests
-
-analyzer_rules:
-  - explicit_self
+  - BetComponents
 
 force_cast: warning
 force_try: warning
+function_body_length:
+  warning: 60
+  error: 100
+
+reporter: "xcode"

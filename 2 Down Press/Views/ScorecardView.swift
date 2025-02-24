@@ -17,6 +17,7 @@ struct ScorecardView: View {
     @State private var showTestScoresButton = true  // Set to false before release
     @EnvironmentObject private var userProfile: UserProfile
     @EnvironmentObject private var betManager: BetManager
+    @GestureState private var dragOffset: CGFloat = 0
     
     private let maxTimerDuration: TimeInterval = 6 * 60 * 60 // 6 hours in seconds
     
@@ -28,30 +29,30 @@ struct ScorecardView: View {
             allPlayers.insert(currentUser)
         }
         
-        // Add players from bets
-        for bet in betManager.individualBets {
+        // Add players from bets (safely)
+        betManager.individualBets.forEach { bet in
             allPlayers.insert(bet.player1)
             allPlayers.insert(bet.player2)
         }
         
-        for bet in betManager.fourBallBets {
+        betManager.fourBallBets.forEach { bet in
             allPlayers.insert(bet.team1Player1)
             allPlayers.insert(bet.team1Player2)
             allPlayers.insert(bet.team2Player1)
             allPlayers.insert(bet.team2Player2)
         }
         
-        for bet in betManager.alabamaBets {
-            for team in bet.teams {
+        betManager.alabamaBets.forEach { bet in
+            bet.teams.forEach { team in
                 allPlayers.formUnion(team)
             }
         }
         
-        for bet in betManager.doDaBets {
+        betManager.doDaBets.forEach { bet in
             allPlayers.formUnion(bet.players)
         }
         
-        for bet in betManager.skinsBets {
+        betManager.skinsBets.forEach { bet in
             allPlayers.formUnion(bet.players)
         }
         
@@ -148,7 +149,7 @@ struct ScorecardView: View {
                 .padding()
                 
                 // Scorecard content
-                ScrollView {
+                ScrollView([.vertical, .horizontal]) {
                     VStack(spacing: 16) {
                         // Tee box info
                         HStack {
@@ -162,43 +163,53 @@ struct ScorecardView: View {
                         }
                         .padding(.horizontal)
                         
-                        // Scorecard with swipe gesture
-                        TabView(selection: $selectedPlayerIndex) {
-                            ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
-                                VStack {
-                                    // Front 9
-                                    ScorecardGridView(
-                                        holes: Array(teeBox.holes.prefix(9)),
-                                        scores: scores[player.id] ?? Array(repeating: "", count: 18)
-                                    ) { index, score in
-                                        updateScore(for: player, at: index, with: score)
-                                    }
-                                    
-                                    // Back 9
-                                    ScorecardGridView(
-                                        holes: Array(teeBox.holes.suffix(9)),
-                                        scores: scores[player.id]?.suffix(9).map { String($0) } ?? Array(repeating: "", count: 9)
-                                    ) { index, score in
-                                        updateScore(for: player, at: index + 9, with: score)
-                                    }
-                                    
-                                    // Totals
-                                    ScorecarTotalsView(
-                                        holes: teeBox.holes,
-                                        scores: scores[player.id] ?? Array(repeating: "", count: 18)
-                                    )
-                                }
-                                .tag(index)
-                            }
+                        // Front 9
+                        ScorecardGridView(
+                            holes: Array(teeBox.holes.prefix(9)),
+                            scores: scores[players[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
+                        ) { index, score in
+                            updateScore(for: players[selectedPlayerIndex], at: index, with: score)
                         }
-                        .tabViewStyle(.page)
-                        .indexViewStyle(.page(backgroundDisplayMode: .never))
+                        
+                        // Back 9
+                        ScorecardGridView(
+                            holes: Array(teeBox.holes.suffix(9)),
+                            scores: scores[players[selectedPlayerIndex].id]?.suffix(9).map { String($0) } ?? Array(repeating: "", count: 9)
+                        ) { index, score in
+                            updateScore(for: players[selectedPlayerIndex], at: index + 9, with: score)
+                        }
+                        
+                        // Totals
+                        ScorecarTotalsView(
+                            holes: teeBox.holes,
+                            scores: scores[players[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
+                        )
                     }
                     .padding(.vertical)
                 }
+                .simultaneousGesture(
+                    DragGesture()
+                        .updating($dragOffset) { value, state, _ in
+                            state = value.translation.width
+                        }
+                        .onEnded { value in
+                            let threshold: CGFloat = 50
+                            if value.translation.width > threshold && players.count > 1 {
+                                withAnimation(.easeInOut) {
+                                    selectedPlayerIndex = (selectedPlayerIndex - 1 + players.count) % players.count
+                                }
+                            } else if value.translation.width < -threshold && players.count > 1 {
+                                withAnimation(.easeInOut) {
+                                    selectedPlayerIndex = (selectedPlayerIndex + 1) % players.count
+                                }
+                            }
+                        }
+                )
                 .onChange(of: selectedPlayerIndex) { oldValue, newValue in
                     // Dismiss keyboard when switching players
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    DispatchQueue.main.async {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
                 }
             } else {
                 // No players view
@@ -214,55 +225,31 @@ struct ScorecardView: View {
             }
             
             // Footer with timer and action buttons
-            VStack(spacing: 8) {
-                HStack {
-                    Button(action: { showLeaderboard = true }) {
-                        Image(systemName: "flag.filled")
-                            .font(.title2)
-                    }
-                    
-                    Spacer()
-                    
-                    Text(formattedTime)
-                        .font(.title3)
-                        .monospacedDigit()
-                    
-                    Spacer()
-                    
-                    Button(action: { showBetCreation = true }) {
-                        Image(systemName: "dollarsign.circle.fill")
-                            .font(.title2)
-                    }
-                }
+            HStack {
+                Text(formattedTime)
+                    .font(.title2.monospacedDigit())
+                    .foregroundColor(.white)
                 
-                if hasStartedRound {
-                    Button(action: toggleTimer) {
-                        Text(isTimerRunning ? "Stop Round" : "Start Round")
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(isTimerRunning ? Color.red.opacity(0.8) : Color.green.opacity(0.8))
-                            )
-                    }
+                Spacer()
+                
+                Button(action: toggleTimer) {
+                    Image(systemName: isTimerRunning ? "pause.circle.fill" : "play.circle.fill")
+                        .font(.title)
+                        .foregroundColor(.white)
                 }
             }
             .padding()
-            .foregroundColor(.white)
             .background(Color.primaryGreen)
         }
         .navigationBarHidden(true)
         .sheet(isPresented: $showMenu) {
-            MenuView()
+            SideMenuView(isShowing: $showMenu, showPlayerList: .constant(false), showFourBallMatchSetup: .constant(false))
                 .environmentObject(betManager)
                 .environmentObject(userProfile)
         }
         .sheet(isPresented: $showBetCreation) {
             BetCreationView(selectedPlayers: players)
                 .environmentObject(betManager)
-                .environmentObject(userProfile)
         }
         .sheet(isPresented: $showPlayerSelection) {
             PlayerSelectionView(selectedPlayers: .constant([]))
@@ -445,20 +432,22 @@ struct ScoreDisplayView: View {
                     if scoreText.isEmpty {
                         Text("")
                             .frame(maxWidth: .infinity)
+                            .background(Color.white.opacity(0.9))
                     } else if let currentScore = scoreInt {
                         Text("\(currentScore)")
                             .foregroundColor(colorForScore(currentScore))
                             .frame(maxWidth: .infinity)
                             .modifier(ScoreDecorationModifier(score: currentScore, par: par))
+                            .background(Color.white.opacity(0.9))
                     }
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 40)
-                .background(Color.white)
+                .background(Color.white.opacity(0.9))
                 .cornerRadius(8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        .stroke(Color.primaryGreen.opacity(0.5), lineWidth: 1)
                 )
                 .padding(.horizontal, 4)
             }
@@ -467,16 +456,26 @@ struct ScoreDisplayView: View {
             if let currentScore = scoreInt {
                 HStack {
                     Spacer()
-                    if currentScore == 1 {
-                        Text("⭐️")
-                            .font(.caption)
-                    } else if currentScore == 2 {
-                        Text("DO DA")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    } else if currentScore > par + 2 {
-                        Text("💩")
-                            .font(.caption)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        if currentScore == 1 {
+                            Text("⭐️")
+                                .font(.caption)
+                                .shadow(color: .yellow, radius: 2)
+                        } else if currentScore == 2 {
+                            Text("DO DA")
+                                .font(.caption)
+                                .foregroundColor(.primaryGreen)
+                                .padding(.horizontal, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.primaryGreen.opacity(0.2))
+                                )
+                                .shadow(color: .green, radius: 1)
+                        } else if currentScore > par + 2 {
+                            Text("💩")
+                                .font(.caption)
+                                .shadow(color: .brown, radius: 1)
+                        }
                     }
                 }
                 .offset(x: 30)
@@ -555,78 +554,87 @@ struct ScorecardGridView: View {
     let onScoreUpdate: (Int, String) -> Void
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header row
-            HStack(spacing: 0) {
-                Text("Hole")
-                    .frame(width: 60)
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                
-                ForEach(holes) { hole in
-                    Text("\(hole.number)")
+        ScrollView(.horizontal, showsIndicators: false) {
+            VStack(spacing: 4) {
+                // Header row
+                HStack(spacing: 0) {
+                    Text("Hole")
                         .frame(width: 60)
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                        .font(.caption.bold())
+                        .foregroundColor(.white)
+                    
+                    ForEach(holes) { hole in
+                        Text("\(hole.number)")
+                            .frame(width: 60)
+                            .font(.caption.bold())
+                            .foregroundColor(.white)
+                    }
                 }
-            }
-            .padding(.vertical, 4)
-            .background(Color.backgroundGray)
-            
-            // Par row
-            HStack(spacing: 0) {
-                Text("Par")
-                    .frame(width: 60)
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                .padding(.vertical, 4)
+                .background(Color.primaryGreen)
                 
-                ForEach(holes) { hole in
-                    Text("\(hole.par)")
+                // Par row
+                HStack(spacing: 0) {
+                    Text("Par")
                         .frame(width: 60)
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                        .font(.caption.bold())
+                        .foregroundColor(.white)
+                    
+                    ForEach(holes) { hole in
+                        Text("\(hole.par)")
+                            .frame(width: 60)
+                            .font(.caption.bold())
+                            .foregroundColor(.white)
+                    }
                 }
-            }
-            .padding(.vertical, 4)
-            
-            // Yardage row
-            HStack(spacing: 0) {
-                Text("Yards")
-                    .frame(width: 60)
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                .padding(.vertical, 4)
+                .background(Color.secondaryGold.opacity(0.9))
                 
-                ForEach(holes) { hole in
-                    Text("\(hole.yardage)")
+                // Yardage row
+                HStack(spacing: 0) {
+                    Text("Yards")
                         .frame(width: 60)
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                        .font(.caption.bold())
+                        .foregroundColor(.white)
+                    
+                    ForEach(holes) { hole in
+                        Text("\(hole.yardage)")
+                            .frame(width: 60)
+                            .font(.caption.bold())
+                            .foregroundColor(.white)
+                    }
                 }
-            }
-            .padding(.vertical, 4)
-            .background(Color.backgroundGray)
-            
-            // Score row
-            HStack(spacing: 0) {
-                Text("Score")
-                    .frame(width: 60)
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                .padding(.vertical, 4)
+                .background(Color.primaryGreen.opacity(0.8))
                 
-                ForEach(Array(holes.enumerated()), id: \.element.id) { index, hole in
-                    ScoreDisplayView(
-                        score: scores[index],
-                        par: hole.par,
-                        scoreText: Binding(
-                            get: { scores[index] },
-                            set: { onScoreUpdate(index, $0) }
+                // Score row
+                HStack(spacing: 0) {
+                    Text("Score")
+                        .frame(width: 60)
+                        .font(.caption.bold())
+                        .foregroundColor(.white)
+                    
+                    ForEach(Array(holes.enumerated()), id: \.element.id) { index, hole in
+                        ScoreDisplayView(
+                            score: scores[index],
+                            par: hole.par,
+                            scoreText: Binding(
+                                get: { scores[index] },
+                                set: { onScoreUpdate(index, $0) }
+                            )
                         )
-                    )
+                    }
                 }
+                .padding(.vertical, 4)
+                .background(Color.secondaryGold.opacity(0.7))
             }
-            .padding(.vertical, 4)
+            .padding(.horizontal)
         }
-        .padding(.horizontal)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        )
     }
 }
 
@@ -667,34 +675,46 @@ struct ScorecarTotalsView: View {
             HStack {
                 Text("Front 9:")
                     .font(.subheadline)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.white)
                 Spacer()
                 Text("\(frontNineScore)")
                     .font(.headline)
+                    .foregroundColor(.white)
             }
             
             HStack {
                 Text("Back 9:")
                     .font(.subheadline)
-                    .foregroundColor(.gray)
+                    .foregroundColor(.white)
                 Spacer()
                 Text("\(backNineScore)")
                     .font(.headline)
+                    .foregroundColor(.white)
             }
             
             Divider()
+                .background(Color.white)
             
             HStack {
                 Text("Total:")
                     .font(.headline)
+                    .foregroundColor(.white)
                 Spacer()
                 Text("\(totalScore)")
                     .font(.title3.bold())
+                    .foregroundColor(.white)
             }
         }
         .padding()
-        .background(Color.backgroundGray)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.primaryGreen, Color.secondaryGold]),
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
         .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
         .padding(.horizontal)
     }
 }

@@ -11,7 +11,7 @@ public struct Player: Identifiable, Hashable, Codable {
         if let nickname = nickname {
             return "\"" + nickname + "\""
         }
-        return String(firstName.prefix(8).uppercased())
+        return firstName.uppercased()
     }
     
     public init(id: UUID = UUID(), firstName: String, lastName: String, email: String, nickname: String? = nil) {

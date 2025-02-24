@@ -199,11 +199,8 @@ struct MyBetsView: View {
                 }
             }
             .sheet(isPresented: $showNewIndividualBet) {
-                NavigationView {
-                    IndividualMatchSetupView(editingBet: nil, selectedPlayers: allPlayers)
-                        .environmentObject(betManager)
-                        .environmentObject(userProfile)
-                }
+                IndividualMatchSetupView(editingBet: nil, selectedPlayers: allPlayers, betManager: betManager)
+                    .environmentObject(userProfile)
             }
             .sheet(isPresented: $showNewFourBallBet) {
                 NavigationView {
@@ -228,11 +225,8 @@ struct MyBetsView: View {
             }
             .sheet(isPresented: $showEditIndividualBet) {
                 if let bet = betToEdit as? IndividualMatchBet {
-                    NavigationView {
-                        IndividualMatchSetupView(editingBet: bet, selectedPlayers: allPlayers)
-                            .environmentObject(betManager)
-                            .environmentObject(userProfile)
-                    }
+                    IndividualMatchSetupView(editingBet: bet, selectedPlayers: allPlayers, betManager: betManager)
+                        .environmentObject(userProfile)
                 }
             }
             .sheet(isPresented: $showEditFourBallBet) {

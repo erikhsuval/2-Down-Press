@@ -165,7 +165,7 @@
 				524861FF2D32CE8900C1412E /* Sources */,
 				524862002D32CE8900C1412E /* Frameworks */,
 				524862012D32CE8900C1412E /* Resources */,
-				525EC7842D4733B90017BF10 /* SwiftLint */,
+				526E5CD92D6D10B900CD95B6 /* SwiftLint */,
 			);
 			buildRules = (
 			);
@@ -327,9 +327,8 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		525EC7842D4733B90017BF10 /* SwiftLint */ = {
+		526E5CD92D6D10B900CD95B6 /* SwiftLint */ = {
 			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -344,7 +343,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if which swiftlint > /dev/null; then\n  swiftlint\nelse\n  echo \"warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint\"\nfi\n";
+			shellScript = "\"${SRCROOT}/.swiftlint.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -520,6 +519,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"2 Down Press/Preview Content\"";
 				DEVELOPMENT_TEAM = 9LD4B84GDT;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "--Down-Press-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -551,6 +551,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"2 Down Press/Preview Content\"";
 				DEVELOPMENT_TEAM = 9LD4B84GDT;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "--Down-Press-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
