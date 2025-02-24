@@ -147,21 +147,21 @@ struct MyBetsView: View {
             }
             .sheet(isPresented: $showNewSkinsBet) {
                 NavigationStack {
-                    SkinsSetupView(editingBet: nil, players: MockData.allPlayers)
+                    SkinsSetupView(editingBet: nil, players: betManager.allPlayers)
                         .environmentObject(betManager)
                         .environmentObject(userProfile)
                 }
             }
             .sheet(isPresented: $showNewIndividualBet) {
                 NavigationView {
-                    IndividualMatchSetupView(editingBet: nil)
+                    IndividualMatchSetupView(editingBet: nil, selectedPlayers: betManager.allPlayers)
                         .environmentObject(betManager)
                         .environmentObject(userProfile)
                 }
             }
             .sheet(isPresented: $showNewFourBallBet) {
                 NavigationView {
-                    FourBallMatchSetupView(editingBet: nil)
+                    FourBallMatchSetupView(editingBet: nil, selectedPlayers: betManager.allPlayers)
                         .environmentObject(betManager)
                         .environmentObject(userProfile)
                 }
@@ -210,7 +210,7 @@ struct MyBetsView: View {
             .sheet(isPresented: $showEditSkinsBet) {
                 if let bet = betToEdit as? SkinsBet {
                     NavigationView {
-                        SkinsSetupView(editingBet: bet, players: MockData.allPlayers)
+                        SkinsSetupView(editingBet: bet, players: betManager.allPlayers)
                             .environmentObject(betManager)
                             .environmentObject(userProfile)
                     }

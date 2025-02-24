@@ -78,8 +78,10 @@ struct FourBallMatchSetupView: View {
     @StateObject private var viewModel: FourBallMatchSetupViewModel
     @State private var showPlayerSelection = false
     @State private var currentSelection: TeamPlayerSelection = .team1Player1
+    let selectedPlayers: [Player]
     
-    init(editingBet: FourBallMatchBet? = nil) {
+    init(editingBet: FourBallMatchBet? = nil, selectedPlayers: [Player]) {
+        self.selectedPlayers = selectedPlayers
         _viewModel = StateObject(wrappedValue: FourBallMatchSetupViewModel(editingBet: editingBet, betManager: BetManager()))
     }
     
@@ -173,7 +175,7 @@ struct FourBallMatchSetupView: View {
             }
             .sheet(isPresented: $showPlayerSelection) {
                 BetPlayerSelectionView(
-                    players: MockData.allPlayers,
+                    players: selectedPlayers,
                     selectedPlayer: Binding(
                         get: {
                             switch currentSelection {

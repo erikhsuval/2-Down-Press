@@ -34,10 +34,12 @@
 		524862032D32CE8900C1412E /* 2 Down Press.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "2 Down Press.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		524862132D32CE8A00C1412E /* 2 Down PressTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "2 Down PressTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5248621D2D32CE8A00C1412E /* 2 Down PressUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "2 Down PressUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		52560C632D6BD062007E300F /* 2 Down Press.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "2 Down Press.xcodeproj"; sourceTree = "<group>"; };
 		525EC7852D4734FA0017BF10 /* .swiftlint.yml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = .swiftlint.yml; sourceTree = "<group>"; };
 		52796A2E2D5D8D0900B3380E /* 2 Down Press.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "2 Down Press.xcodeproj"; sourceTree = "<group>"; };
 		52ABF2EB2D5D4BCD0089C334 /* 2 Down Press.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "2 Down Press.xcodeproj"; sourceTree = "<group>"; };
 		52EA53942D5D4E3500F93847 /* 2 Down Press.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "2 Down Press.xcodeproj"; sourceTree = "<group>"; };
+		52FC4A242D6BDAA700C62899 /* 2 Down Press.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "2 Down Press.xcodeproj"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -106,6 +108,13 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		52560C682D6BD062007E300F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		52796A332D5D8D0900B3380E /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -121,6 +130,13 @@
 			sourceTree = "<group>";
 		};
 		52EA53992D5D4E3500F93847 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		52FC4A282D6BDAA700C62899 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -248,8 +264,16 @@
 					ProjectRef = 52EA53942D5D4E3500F93847 /* 2 Down Press.xcodeproj */;
 				},
 				{
+					ProductGroup = 52FC4A282D6BDAA700C62899 /* Products */;
+					ProjectRef = 52FC4A242D6BDAA700C62899 /* 2 Down Press.xcodeproj */;
+				},
+				{
 					ProductGroup = 52796A332D5D8D0900B3380E /* Products */;
 					ProjectRef = 52796A2E2D5D8D0900B3380E /* 2 Down Press.xcodeproj */;
+				},
+				{
+					ProductGroup = 52560C682D6BD062007E300F /* Products */;
+					ProjectRef = 52560C632D6BD062007E300F /* 2 Down Press.xcodeproj */;
 				},
 			);
 			projectRoot = "";
@@ -290,6 +314,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		525EC7842D4733B90017BF10 /* SwiftLint */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);

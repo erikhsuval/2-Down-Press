@@ -65,8 +65,10 @@ struct IndividualMatchSetupView: View {
     @StateObject private var viewModel: IndividualMatchSetupViewModel
     @State private var showPlayerSelection = false
     @State private var selectingForFirstPlayer = true
+    let selectedPlayers: [Player]
     
-    init(editingBet: IndividualMatchBet? = nil) {
+    init(editingBet: IndividualMatchBet? = nil, selectedPlayers: [Player]) {
+        self.selectedPlayers = selectedPlayers
         _viewModel = StateObject(wrappedValue: IndividualMatchSetupViewModel(editingBet: editingBet, betManager: BetManager()))
     }
     
@@ -138,7 +140,7 @@ struct IndividualMatchSetupView: View {
             }
             .sheet(isPresented: $showPlayerSelection) {
                 BetPlayerSelectionView(
-                    players: MockData.allPlayers,
+                    players: selectedPlayers,
                     selectedPlayer: selectingForFirstPlayer ? 
                         Binding(
                             get: { viewModel.selectedPlayer1 },
