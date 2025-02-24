@@ -51,14 +51,6 @@ class UserProfile: ObservableObject {
     }
 }
 
-struct Hole: Identifiable {
-    let id: UUID
-    let number: Int
-    let yardage: Int
-    let par: Int
-    let handicap: Int
-}
-
 struct PlayerDetailsView: View {
     @EnvironmentObject private var userProfile: UserProfile
     @EnvironmentObject private var betManager: BetManager

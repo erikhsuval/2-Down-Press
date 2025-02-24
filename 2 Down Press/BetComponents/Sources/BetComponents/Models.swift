@@ -1,14 +1,25 @@
 import Foundation
 
-public struct Player: Identifiable, Hashable {
+public struct Player: Identifiable, Hashable, Codable {
     public let id: UUID
-    public let name: String
-    public let handicap: Int
+    public var firstName: String
+    public var lastName: String
+    public var email: String
+    public var nickname: String?
     
-    public init(id: UUID = UUID(), name: String, handicap: Int) {
+    public var scorecardName: String {
+        if let nickname = nickname {
+            return "\"" + nickname + "\""
+        }
+        return String(firstName.prefix(8).uppercased())
+    }
+    
+    public init(id: UUID = UUID(), firstName: String, lastName: String, email: String, nickname: String? = nil) {
         self.id = id
-        self.name = name
-        self.handicap = handicap
+        self.firstName = firstName
+        self.lastName = lastName
+        self.email = email
+        self.nickname = nickname
     }
     
     public static func == (lhs: Player, rhs: Player) -> Bool {
@@ -45,8 +56,41 @@ public class BetManager: ObservableObject {
     @Published public var doDaBets: [DoDaBet] = []
     @Published public var skinsBets: [SkinsBet] = []
     @Published public var acesBets: [AcesBet] = []
+    @Published public var playerScores: [UUID: [String]] = [:]
+    @Published public var teeBox: TeeBox?
     
     public init() {}
+    
+    public func updateScoresAndTeeBox(scores: [UUID: [String]], teeBox: TeeBox) {
+        self.playerScores = scores
+        self.teeBox = teeBox
+        
+        // Update scores and teeBox for all bets
+        for index in individualBets.indices {
+            individualBets[index].playerScores = scores
+            individualBets[index].teeBox = teeBox
+        }
+        
+        for index in fourBallBets.indices {
+            fourBallBets[index].playerScores = scores
+            fourBallBets[index].teeBox = teeBox
+        }
+        
+        for index in alabamaBets.indices {
+            alabamaBets[index].playerScores = scores
+            alabamaBets[index].teeBox = teeBox
+        }
+        
+        for index in doDaBets.indices {
+            doDaBets[index].playerScores = scores
+            doDaBets[index].teeBox = teeBox
+        }
+        
+        for index in skinsBets.indices {
+            skinsBets[index].playerScores = scores
+            skinsBets[index].teeBox = teeBox
+        }
+    }
     
     public func addAcesBet(amount: Double, players: [Player]) {
         let bet = AcesBet(
