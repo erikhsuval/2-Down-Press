@@ -36,38 +36,238 @@ public struct HoleInfo: Identifiable {
     public let number: Int
     public let par: Int
     public let yardage: Int
+    public let handicap: Int
     
-    public init(id: UUID = UUID(), number: Int, par: Int, yardage: Int) {
+    public init(id: UUID = UUID(), number: Int, par: Int, yardage: Int, handicap: Int) {
         self.id = id
         self.number = number
         self.par = par
         self.yardage = yardage
+        self.handicap = handicap
     }
 }
 
 public enum TeeBox: String, CaseIterable {
+    case championship = "Championship"
     case black = "Black"
+    case blackBlue = "Black/Blue"
     case blue = "Blue"
-    case white = "White"
+    case blueGold = "Blue/Gold"
     case gold = "Gold"
-    case red = "Red"
+    case white = "White"
+    case green = "Green"
     
     public var color: String {
         switch self {
+        case .championship: return "Championship"
         case .black: return "Black"
+        case .blackBlue: return "Black/Blue"
         case .blue: return "Blue"
-        case .white: return "White"
+        case .blueGold: return "Blue/Gold"
         case .gold: return "Gold"
-        case .red: return "Red"
+        case .white: return "White"
+        case .green: return "Green"
         }
     }
 
     public var name: String { rawValue }
     
     public var holes: [HoleInfo] {
-        // You'll need to implement this based on your course data
-        []  // Placeholder return
+        switch self {
+        case .championship:
+            return Self.championshipHoles
+        case .black:
+            return Self.blackHoles
+        case .blackBlue:
+            return Self.blackBlueHoles
+        case .blue:
+            return Self.blueHoles
+        case .blueGold:
+            return Self.blueGoldHoles
+        case .gold:
+            return Self.goldHoles
+        case .white:
+            return Self.whiteHoles
+        case .green:
+            return Self.greenHoles
+        }
     }
+    
+    // Championship tee holes data
+    private static let championshipHoles: [HoleInfo] = [
+        HoleInfo(number: 1, par: 4, yardage: 376, handicap: 7),
+        HoleInfo(number: 2, par: 4, yardage: 388, handicap: 3),
+        HoleInfo(number: 3, par: 5, yardage: 554, handicap: 11),
+        HoleInfo(number: 4, par: 3, yardage: 200, handicap: 1),
+        HoleInfo(number: 5, par: 4, yardage: 416, handicap: 9),
+        HoleInfo(number: 6, par: 5, yardage: 544, handicap: 17),
+        HoleInfo(number: 7, par: 4, yardage: 406, handicap: 13),
+        HoleInfo(number: 8, par: 4, yardage: 458, handicap: 5),
+        HoleInfo(number: 9, par: 3, yardage: 174, handicap: 15),
+        HoleInfo(number: 10, par: 4, yardage: 415, handicap: 6),
+        HoleInfo(number: 11, par: 4, yardage: 414, handicap: 8),
+        HoleInfo(number: 12, par: 4, yardage: 390, handicap: 14),
+        HoleInfo(number: 13, par: 4, yardage: 434, handicap: 4),
+        HoleInfo(number: 14, par: 5, yardage: 597, handicap: 10),
+        HoleInfo(number: 15, par: 3, yardage: 129, handicap: 16),
+        HoleInfo(number: 16, par: 5, yardage: 553, handicap: 18),
+        HoleInfo(number: 17, par: 3, yardage: 208, handicap: 12),
+        HoleInfo(number: 18, par: 4, yardage: 436, handicap: 2)
+    ]
+    
+    // Black tee holes data
+    private static let blackHoles: [HoleInfo] = [
+        HoleInfo(number: 1, par: 4, yardage: 376, handicap: 7),
+        HoleInfo(number: 2, par: 4, yardage: 388, handicap: 3),
+        HoleInfo(number: 3, par: 5, yardage: 517, handicap: 11),
+        HoleInfo(number: 4, par: 3, yardage: 200, handicap: 1),
+        HoleInfo(number: 5, par: 4, yardage: 377, handicap: 9),
+        HoleInfo(number: 6, par: 5, yardage: 544, handicap: 17),
+        HoleInfo(number: 7, par: 4, yardage: 406, handicap: 13),
+        HoleInfo(number: 8, par: 4, yardage: 416, handicap: 5),
+        HoleInfo(number: 9, par: 3, yardage: 174, handicap: 15),
+        HoleInfo(number: 10, par: 4, yardage: 415, handicap: 6),
+        HoleInfo(number: 11, par: 4, yardage: 414, handicap: 8),
+        HoleInfo(number: 12, par: 4, yardage: 390, handicap: 14),
+        HoleInfo(number: 13, par: 4, yardage: 406, handicap: 4),
+        HoleInfo(number: 14, par: 5, yardage: 563, handicap: 10),
+        HoleInfo(number: 15, par: 3, yardage: 123, handicap: 16),
+        HoleInfo(number: 16, par: 5, yardage: 553, handicap: 18),
+        HoleInfo(number: 17, par: 3, yardage: 208, handicap: 12),
+        HoleInfo(number: 18, par: 4, yardage: 436, handicap: 2)
+    ]
+    
+    // Black/Blue tee holes data
+    private static let blackBlueHoles: [HoleInfo] = [
+        HoleInfo(number: 1, par: 4, yardage: 376, handicap: 7),
+        HoleInfo(number: 2, par: 4, yardage: 388, handicap: 3),
+        HoleInfo(number: 3, par: 5, yardage: 497, handicap: 11),
+        HoleInfo(number: 4, par: 3, yardage: 174, handicap: 1),
+        HoleInfo(number: 5, par: 4, yardage: 360, handicap: 9),
+        HoleInfo(number: 6, par: 5, yardage: 544, handicap: 17),
+        HoleInfo(number: 7, par: 4, yardage: 406, handicap: 13),
+        HoleInfo(number: 8, par: 4, yardage: 378, handicap: 5),
+        HoleInfo(number: 9, par: 3, yardage: 174, handicap: 15),
+        HoleInfo(number: 10, par: 4, yardage: 394, handicap: 6),
+        HoleInfo(number: 11, par: 4, yardage: 414, handicap: 8),
+        HoleInfo(number: 12, par: 4, yardage: 350, handicap: 14),
+        HoleInfo(number: 13, par: 4, yardage: 392, handicap: 4),
+        HoleInfo(number: 14, par: 5, yardage: 524, handicap: 10),
+        HoleInfo(number: 15, par: 3, yardage: 123, handicap: 16),
+        HoleInfo(number: 16, par: 5, yardage: 553, handicap: 18),
+        HoleInfo(number: 17, par: 3, yardage: 175, handicap: 12),
+        HoleInfo(number: 18, par: 4, yardage: 408, handicap: 2)
+    ]
+    
+    // Blue tee holes data
+    private static let blueHoles: [HoleInfo] = [
+        HoleInfo(number: 1, par: 4, yardage: 359, handicap: 7),
+        HoleInfo(number: 2, par: 4, yardage: 366, handicap: 3),
+        HoleInfo(number: 3, par: 5, yardage: 497, handicap: 11),
+        HoleInfo(number: 4, par: 3, yardage: 174, handicap: 1),
+        HoleInfo(number: 5, par: 4, yardage: 360, handicap: 9),
+        HoleInfo(number: 6, par: 5, yardage: 499, handicap: 17),
+        HoleInfo(number: 7, par: 4, yardage: 369, handicap: 13),
+        HoleInfo(number: 8, par: 4, yardage: 378, handicap: 5),
+        HoleInfo(number: 9, par: 3, yardage: 155, handicap: 15),
+        HoleInfo(number: 10, par: 4, yardage: 394, handicap: 6),
+        HoleInfo(number: 11, par: 4, yardage: 396, handicap: 8),
+        HoleInfo(number: 12, par: 4, yardage: 350, handicap: 14),
+        HoleInfo(number: 13, par: 4, yardage: 392, handicap: 4),
+        HoleInfo(number: 14, par: 5, yardage: 524, handicap: 10),
+        HoleInfo(number: 15, par: 3, yardage: 109, handicap: 16),
+        HoleInfo(number: 16, par: 5, yardage: 522, handicap: 18),
+        HoleInfo(number: 17, par: 3, yardage: 175, handicap: 12),
+        HoleInfo(number: 18, par: 4, yardage: 408, handicap: 2)
+    ]
+    
+    // Blue/Gold tee holes data
+    private static let blueGoldHoles: [HoleInfo] = [
+        HoleInfo(number: 1, par: 4, yardage: 343, handicap: 7),
+        HoleInfo(number: 2, par: 4, yardage: 354, handicap: 3),
+        HoleInfo(number: 3, par: 5, yardage: 482, handicap: 11),
+        HoleInfo(number: 4, par: 3, yardage: 174, handicap: 1),
+        HoleInfo(number: 5, par: 4, yardage: 316, handicap: 9),
+        HoleInfo(number: 6, par: 5, yardage: 499, handicap: 17),
+        HoleInfo(number: 7, par: 4, yardage: 346, handicap: 13),
+        HoleInfo(number: 8, par: 4, yardage: 342, handicap: 5),
+        HoleInfo(number: 9, par: 3, yardage: 155, handicap: 15),
+        HoleInfo(number: 10, par: 4, yardage: 394, handicap: 6),
+        HoleInfo(number: 11, par: 4, yardage: 327, handicap: 8),
+        HoleInfo(number: 12, par: 4, yardage: 339, handicap: 14),
+        HoleInfo(number: 13, par: 4, yardage: 327, handicap: 4),
+        HoleInfo(number: 14, par: 5, yardage: 475, handicap: 10),
+        HoleInfo(number: 15, par: 3, yardage: 109, handicap: 16),
+        HoleInfo(number: 16, par: 5, yardage: 480, handicap: 18),
+        HoleInfo(number: 17, par: 3, yardage: 175, handicap: 12),
+        HoleInfo(number: 18, par: 4, yardage: 349, handicap: 2)
+    ]
+    
+    // Gold tee holes data
+    private static let goldHoles: [HoleInfo] = [
+        HoleInfo(number: 1, par: 4, yardage: 343, handicap: 7),
+        HoleInfo(number: 2, par: 4, yardage: 354, handicap: 3),
+        HoleInfo(number: 3, par: 5, yardage: 482, handicap: 11),
+        HoleInfo(number: 4, par: 3, yardage: 136, handicap: 1),
+        HoleInfo(number: 5, par: 4, yardage: 316, handicap: 9),
+        HoleInfo(number: 6, par: 5, yardage: 467, handicap: 17),
+        HoleInfo(number: 7, par: 4, yardage: 346, handicap: 13),
+        HoleInfo(number: 8, par: 4, yardage: 342, handicap: 5),
+        HoleInfo(number: 9, par: 3, yardage: 145, handicap: 15),
+        HoleInfo(number: 10, par: 4, yardage: 358, handicap: 6),
+        HoleInfo(number: 11, par: 4, yardage: 327, handicap: 8),
+        HoleInfo(number: 12, par: 4, yardage: 339, handicap: 14),
+        HoleInfo(number: 13, par: 4, yardage: 327, handicap: 4),
+        HoleInfo(number: 14, par: 5, yardage: 475, handicap: 10),
+        HoleInfo(number: 15, par: 3, yardage: 101, handicap: 16),
+        HoleInfo(number: 16, par: 5, yardage: 480, handicap: 18),
+        HoleInfo(number: 17, par: 3, yardage: 141, handicap: 12),
+        HoleInfo(number: 18, par: 4, yardage: 349, handicap: 2)
+    ]
+    
+    // White tee holes data
+    private static let whiteHoles: [HoleInfo] = [
+        HoleInfo(number: 1, par: 4, yardage: 318, handicap: 7),
+        HoleInfo(number: 2, par: 4, yardage: 321, handicap: 3),
+        HoleInfo(number: 3, par: 5, yardage: 430, handicap: 11),
+        HoleInfo(number: 4, par: 3, yardage: 129, handicap: 1),
+        HoleInfo(number: 5, par: 4, yardage: 283, handicap: 9),
+        HoleInfo(number: 6, par: 5, yardage: 436, handicap: 17),
+        HoleInfo(number: 7, par: 4, yardage: 315, handicap: 13),
+        HoleInfo(number: 8, par: 4, yardage: 336, handicap: 5),
+        HoleInfo(number: 9, par: 3, yardage: 100, handicap: 15),
+        HoleInfo(number: 10, par: 4, yardage: 353, handicap: 6),
+        HoleInfo(number: 11, par: 4, yardage: 301, handicap: 8),
+        HoleInfo(number: 12, par: 4, yardage: 309, handicap: 14),
+        HoleInfo(number: 13, par: 4, yardage: 286, handicap: 4),
+        HoleInfo(number: 14, par: 5, yardage: 470, handicap: 10),
+        HoleInfo(number: 15, par: 3, yardage: 73, handicap: 16),
+        HoleInfo(number: 16, par: 5, yardage: 445, handicap: 18),
+        HoleInfo(number: 17, par: 3, yardage: 116, handicap: 12),
+        HoleInfo(number: 18, par: 4, yardage: 316, handicap: 2)
+    ]
+    
+    // Green tee holes data
+    private static let greenHoles: [HoleInfo] = [
+        HoleInfo(number: 1, par: 4, yardage: 262, handicap: 7),
+        HoleInfo(number: 2, par: 4, yardage: 255, handicap: 3),
+        HoleInfo(number: 3, par: 5, yardage: 364, handicap: 11),
+        HoleInfo(number: 4, par: 3, yardage: 129, handicap: 1),
+        HoleInfo(number: 5, par: 4, yardage: 229, handicap: 9),
+        HoleInfo(number: 6, par: 5, yardage: 376, handicap: 17),
+        HoleInfo(number: 7, par: 4, yardage: 250, handicap: 13),
+        HoleInfo(number: 8, par: 4, yardage: 259, handicap: 5),
+        HoleInfo(number: 9, par: 3, yardage: 100, handicap: 15),
+        HoleInfo(number: 10, par: 4, yardage: 282, handicap: 6),
+        HoleInfo(number: 11, par: 4, yardage: 259, handicap: 8),
+        HoleInfo(number: 12, par: 4, yardage: 223, handicap: 14),
+        HoleInfo(number: 13, par: 4, yardage: 220, handicap: 4),
+        HoleInfo(number: 14, par: 5, yardage: 394, handicap: 10),
+        HoleInfo(number: 15, par: 3, yardage: 73, handicap: 16),
+        HoleInfo(number: 16, par: 5, yardage: 360, handicap: 18),
+        HoleInfo(number: 17, par: 3, yardage: 116, handicap: 12),
+        HoleInfo(number: 18, par: 4, yardage: 268, handicap: 2)
+    ]
 }
 
 public class BetManager: ObservableObject {

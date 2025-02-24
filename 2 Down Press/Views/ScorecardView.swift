@@ -123,6 +123,7 @@ struct ScorecardView: View {
                     }) {
                         Image(systemName: "chevron.left")
                             .foregroundColor(.primaryGreen)
+                            .imageScale(.large)
                     }
                     .disabled(players.count <= 1)
                     
@@ -140,6 +141,7 @@ struct ScorecardView: View {
                     }) {
                         Image(systemName: "chevron.right")
                             .foregroundColor(.primaryGreen)
+                            .imageScale(.large)
                     }
                     .disabled(players.count <= 1)
                 }
@@ -160,29 +162,43 @@ struct ScorecardView: View {
                         }
                         .padding(.horizontal)
                         
-                        // Front 9
-                        ScorecardGridView(
-                            holes: Array(teeBox.holes.prefix(9)),
-                            scores: scores[players[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
-                        ) { index, score in
-                            updateScore(for: players[selectedPlayerIndex], at: index, with: score)
+                        // Scorecard with swipe gesture
+                        TabView(selection: $selectedPlayerIndex) {
+                            ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
+                                VStack {
+                                    // Front 9
+                                    ScorecardGridView(
+                                        holes: Array(teeBox.holes.prefix(9)),
+                                        scores: scores[player.id] ?? Array(repeating: "", count: 18)
+                                    ) { index, score in
+                                        updateScore(for: player, at: index, with: score)
+                                    }
+                                    
+                                    // Back 9
+                                    ScorecardGridView(
+                                        holes: Array(teeBox.holes.suffix(9)),
+                                        scores: scores[player.id]?.suffix(9).map { String($0) } ?? Array(repeating: "", count: 9)
+                                    ) { index, score in
+                                        updateScore(for: player, at: index + 9, with: score)
+                                    }
+                                    
+                                    // Totals
+                                    ScorecarTotalsView(
+                                        holes: teeBox.holes,
+                                        scores: scores[player.id] ?? Array(repeating: "", count: 18)
+                                    )
+                                }
+                                .tag(index)
+                            }
                         }
-                        
-                        // Back 9
-                        ScorecardGridView(
-                            holes: Array(teeBox.holes.suffix(9)),
-                            scores: scores[players[selectedPlayerIndex].id]?.suffix(9).map { String($0) } ?? Array(repeating: "", count: 9)
-                        ) { index, score in
-                            updateScore(for: players[selectedPlayerIndex], at: index + 9, with: score)
-                        }
-                        
-                        // Totals
-                        ScorecarTotalsView(
-                            holes: teeBox.holes,
-                            scores: scores[players[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
-                        )
+                        .tabViewStyle(.page)
+                        .indexViewStyle(.page(backgroundDisplayMode: .never))
                     }
                     .padding(.vertical)
+                }
+                .onChange(of: selectedPlayerIndex) { oldValue, newValue in
+                    // Dismiss keyboard when switching players
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
             } else {
                 // No players view
@@ -352,10 +368,68 @@ struct TestScoreData {
     ]
 }
 
+struct CustomNumberPad: View {
+    @Binding var text: String
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            // Number grid
+            ForEach(0..<3) { row in
+                HStack(spacing: 8) {
+                    ForEach(1...3, id: \.self) { number in
+                        numberButton(String(row * 3 + number))
+                    }
+                }
+            }
+            HStack(spacing: 8) {
+                numberButton("0")
+                Button(action: {
+                    text = ""
+                }) {
+                    Image(systemName: "delete.left")
+                        .font(.title2)
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(8)
+                }
+                Button(action: onDismiss) {
+                    Image(systemName: "keyboard.chevron.compact.down")
+                        .font(.title2)
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(8)
+                }
+            }
+        }
+        .padding()
+        .background(Color.white)
+    }
+    
+    private func numberButton(_ number: String) -> some View {
+        Button(action: {
+            text = number
+        }) {
+            Text(number)
+                .font(.title2)
+                .foregroundColor(.primary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(Color.gray.opacity(0.2))
+                .cornerRadius(8)
+        }
+    }
+}
+
 struct ScoreDisplayView: View {
     let score: String
     let par: Int
     @Binding var scoreText: String
+    @State private var showCustomKeypad = false
     
     var scoreInt: Int? {
         Int(score)
@@ -365,26 +439,29 @@ struct ScoreDisplayView: View {
         ZStack {
             // Score input and display
             ZStack {
-                TextField("", text: $scoreText)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                
-                if let currentScore = scoreInt {
-                    Text("\(currentScore)")
-                        .foregroundColor(colorForScore(currentScore))
-                        .frame(maxWidth: .infinity)
-                        .modifier(ScoreDecorationModifier(score: currentScore, par: par))
+                Button(action: {
+                    showCustomKeypad = true
+                }) {
+                    if scoreText.isEmpty {
+                        Text("")
+                            .frame(maxWidth: .infinity)
+                    } else if let currentScore = scoreInt {
+                        Text("\(currentScore)")
+                            .foregroundColor(colorForScore(currentScore))
+                            .frame(maxWidth: .infinity)
+                            .modifier(ScoreDecorationModifier(score: currentScore, par: par))
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .background(Color.white)
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                )
+                .padding(.horizontal, 4)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 40)
-            .background(Color.white)
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-            )
             
             // Overlay decorations to the right
             if let currentScore = scoreInt {
@@ -402,10 +479,16 @@ struct ScoreDisplayView: View {
                             .font(.caption)
                     }
                 }
-                .padding(.trailing, 4)
+                .offset(x: 30)
             }
         }
-        .padding(.horizontal, 8)
+        .frame(width: 60)
+        .sheet(isPresented: $showCustomKeypad) {
+            CustomNumberPad(text: $scoreText) {
+                showCustomKeypad = false
+            }
+            .presentationDetents([.height(300)])
+        }
     }
     
     private func colorForScore(_ score: Int) -> Color {
@@ -482,7 +565,7 @@ struct ScorecardGridView: View {
                 
                 ForEach(holes) { hole in
                     Text("\(hole.number)")
-                        .frame(width: 40)
+                        .frame(width: 60)
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
@@ -499,7 +582,7 @@ struct ScorecardGridView: View {
                 
                 ForEach(holes) { hole in
                     Text("\(hole.par)")
-                        .frame(width: 40)
+                        .frame(width: 60)
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
@@ -515,7 +598,7 @@ struct ScorecardGridView: View {
                 
                 ForEach(holes) { hole in
                     Text("\(hole.yardage)")
-                        .frame(width: 40)
+                        .frame(width: 60)
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
@@ -539,7 +622,6 @@ struct ScorecardGridView: View {
                             set: { onScoreUpdate(index, $0) }
                         )
                     )
-                    .frame(width: 40)
                 }
             }
             .padding(.vertical, 4)
@@ -1230,3 +1312,4 @@ struct MenuButton: View {
         }
     }
 } 
+

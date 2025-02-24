@@ -10,11 +10,14 @@ struct TeeBoxSelectionView: View {
     
     private var betComponentsTeeBox: BetComponents.TeeBox {
         switch selectedTeeBox.name.lowercased() {
+        case "championship": return .championship
         case "black": return .black
+        case "black/blue": return .blackBlue
         case "blue": return .blue
-        case "white": return .white
+        case "blue/gold": return .blueGold
         case "gold": return .gold
-        case "red": return .red
+        case "white": return .white
+        case "green": return .green
         default: return .white
         }
     }
