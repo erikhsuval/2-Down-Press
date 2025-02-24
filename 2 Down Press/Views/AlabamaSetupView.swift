@@ -5,7 +5,7 @@ class AlabamaSetupViewModel: ObservableObject {
     @Published var numberOfTeams = 3
     @Published var playersPerTeam = 5
     @Published var countingScores = 4
-    @Published var teams: [[Player]] = []
+    @Published var teams: [[BetComponents.Player]] = []
     @Published var alabamaAmount = ""
     @Published var lowBallAmount = ""
     @Published var perBirdieAmount = ""
@@ -41,7 +41,7 @@ class AlabamaSetupViewModel: ObservableObject {
         editingBet != nil ? "Edit Alabama Game" : "New Alabama Game"
     }
     
-    func updateTeams(at index: Int, with players: [Player]) {
+    func updateTeams(at index: Int, with players: [BetComponents.Player]) {
         teams[index] = players
     }
     
@@ -78,10 +78,10 @@ struct AlabamaSetupView: View {
     @StateObject private var viewModel: AlabamaSetupViewModel
     @State private var showPlayerSelection = false
     @State private var currentTeamIndex = 0
-    @State private var selectedPlayers: [Player] = []
-    let allPlayers: [Player]
+    @State private var selectedPlayers: [BetComponents.Player] = []
+    let allPlayers: [BetComponents.Player]
     
-    init(editingBet: AlabamaBet? = nil, allPlayers: [Player]) {
+    init(editingBet: AlabamaBet? = nil, allPlayers: [BetComponents.Player]) {
         self.allPlayers = allPlayers
         _viewModel = StateObject(wrappedValue: AlabamaSetupViewModel(editingBet: editingBet, betManager: BetManager()))
     }
@@ -198,7 +198,7 @@ struct AlabamaSetupView: View {
 
 private struct TeamRow: View {
     let teamIndex: Int
-    let team: [Player]
+    let team: [BetComponents.Player]
     let onSelectPlayers: () -> Void
     let onChangePlayers: () -> Void
     

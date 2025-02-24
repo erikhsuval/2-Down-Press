@@ -1,4 +1,5 @@
 import SwiftUI
+import BetComponents
 
 struct MyAccountView: View {
     @EnvironmentObject private var userProfile: UserProfile
@@ -26,7 +27,7 @@ struct MyAccountView: View {
             .navigationBarItems(
                 leading: Button("Cancel") { dismiss() },
                 trailing: Button("Save") {
-                    let player = Player(id: userProfile.currentUser?.id ?? UUID(),
+                    let player = BetComponents.Player(id: userProfile.currentUser?.id ?? UUID(),
                                       firstName: firstName,
                                       lastName: lastName,
                                       email: email)

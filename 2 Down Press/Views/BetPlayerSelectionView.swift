@@ -1,12 +1,13 @@
 import SwiftUI
+import BetComponents
 
 struct BetPlayerSelectionView: View {
-    let players: [Player]
-    @Binding var selectedPlayer: Player?
+    let players: [BetComponents.Player]
+    @Binding var selectedPlayer: BetComponents.Player?
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userProfile: UserProfile
     
-    var allPlayers: [Player] {
+    var allPlayers: [BetComponents.Player] {
         var playerList = players
         if let currentUser = userProfile.currentUser {
             playerList.insert(currentUser, at: 0)

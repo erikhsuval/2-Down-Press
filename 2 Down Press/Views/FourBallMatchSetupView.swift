@@ -3,10 +3,10 @@ import Foundation
 import BetComponents
 
 class FourBallMatchSetupViewModel: ObservableObject {
-    @Published var team1Player1: Player?
-    @Published var team1Player2: Player?
-    @Published var team2Player1: Player?
-    @Published var team2Player2: Player?
+    @Published var team1Player1: BetComponents.Player? = nil
+    @Published var team1Player2: BetComponents.Player? = nil
+    @Published var team2Player1: BetComponents.Player? = nil
+    @Published var team2Player2: BetComponents.Player? = nil
     @Published var perHoleAmount: Double = 0
     @Published var perBirdieAmount: Double = 0
     @Published var pressOn9and18 = false
@@ -78,9 +78,9 @@ struct FourBallMatchSetupView: View {
     @StateObject private var viewModel: FourBallMatchSetupViewModel
     @State private var showPlayerSelection = false
     @State private var currentSelection: TeamPlayerSelection = .team1Player1
-    let selectedPlayers: [Player]
+    let selectedPlayers: [BetComponents.Player]
     
-    init(editingBet: FourBallMatchBet? = nil, selectedPlayers: [Player]) {
+    init(editingBet: FourBallMatchBet? = nil, selectedPlayers: [BetComponents.Player]) {
         self.selectedPlayers = selectedPlayers
         _viewModel = StateObject(wrappedValue: FourBallMatchSetupViewModel(editingBet: editingBet, betManager: BetManager()))
     }

@@ -3,7 +3,7 @@ import BetComponents
 
 struct ScorecardView: View {
     let course: GolfCourse
-    let teeBox: TeeBox
+    let teeBox: BetComponents.TeeBox
     @State private var showMenu = false
     @State private var showBetCreation = false
     @State private var showPlayerSelection = false
@@ -20,8 +20,8 @@ struct ScorecardView: View {
     
     private let maxTimerDuration: TimeInterval = 6 * 60 * 60 // 6 hours in seconds
     
-    private var players: [Player] {
-        var allPlayers = Set<Player>()
+    private var players: [BetComponents.Player] {
+        var allPlayers = Set<BetComponents.Player>()
         
         // Add current user if available
         if let currentUser = userProfile.currentUser {
@@ -285,7 +285,7 @@ struct ScorecardView: View {
         }
     }
     
-    private func updateScore(for player: Player, at index: Int, with score: String) {
+    private func updateScore(for player: BetComponents.Player, at index: Int, with score: String) {
         var playerScores = scores[player.id] ?? Array(repeating: "", count: 18)
         playerScores[index] = score
         scores[player.id] = playerScores
@@ -467,7 +467,7 @@ struct ScoreDecorationModifier: ViewModifier {
 }
 
 struct ScorecardGridView: View {
-    let holes: [HoleInfo]
+    let holes: [BetComponents.HoleInfo]
     let scores: [String]
     let onScoreUpdate: (Int, String) -> Void
     
@@ -549,7 +549,7 @@ struct ScorecardGridView: View {
 }
 
 struct ScorecarTotalsView: View {
-    let holes: [HoleInfo]
+    let holes: [BetComponents.HoleInfo]
     let scores: [String]
     
     private var frontNinePar: Int {
@@ -620,7 +620,7 @@ struct ScorecarTotalsView: View {
 struct ScorecardNavigationTabs: View {
     @Binding var showLeaderboard: Bool
     @Binding var showBetCreation: Bool
-    let selectedGroupPlayers: [Player]
+    let selectedGroupPlayers: [BetComponents.Player]
     let currentPlayerIndex: Int
     
     var body: some View {
@@ -672,9 +672,9 @@ struct ScorecardNavigationTabs: View {
 
 struct PlayerSelectionView: View {
     @Environment(\.dismiss) private var dismiss
-    @Binding var selectedPlayers: [Player]
+    @Binding var selectedPlayers: [BetComponents.Player]
     @State private var tempSelectedPlayers: Set<UUID> = []
-    @State private var availablePlayers: [Player] = []
+    @State private var availablePlayers: [BetComponents.Player] = []
     
     var body: some View {
         NavigationView {
@@ -733,7 +733,7 @@ struct PlayerSelectionView: View {
 }
 
 struct PlayerSelectionRow: View {
-    let player: Player
+    let player: BetComponents.Player
     let isSelected: Bool
     
     var body: some View {
@@ -761,8 +761,8 @@ struct PlayerSelectionRow: View {
 
 struct LeaderboardView: View {
     let course: GolfCourse
-    let teeBox: TeeBox
-    let players: [Player]
+    let teeBox: BetComponents.TeeBox
+    let players: [BetComponents.Player]
     let playerScores: [UUID: [String]]
     @Binding var currentPlayerIndex: Int
     @Environment(\.dismiss) private var dismiss
@@ -934,7 +934,7 @@ struct LeaderboardView: View {
             Button("Cancel", role: .cancel) { }
             Button("Post") {
                 // Update scores and teeBox in BetManager
-                betManager.updateScoresAndTeeBox(scores: playerScores, teeBox: teeBox)
+                betManager.updateScoresAndTeeBox(playerScores, teeBox)
                 
                 withAnimation {
                     showPostAnimation = true
@@ -963,13 +963,13 @@ struct LeaderboardView: View {
 }
 
 class PlayerStatsViewModel {
-    let player: Player
+    let player: BetComponents.Player
     let index: Int
     let playerScores: [UUID: [String]]
-    let teeBox: TeeBox
+    let teeBox: BetComponents.TeeBox
     let betManager: BetManager
     
-    init(player: Player, index: Int, playerScores: [UUID: [String]], teeBox: TeeBox, betManager: BetManager) {
+    init(player: BetComponents.Player, index: Int, playerScores: [UUID: [String]], teeBox: BetComponents.TeeBox, betManager: BetManager) {
         self.player = player
         self.index = index
         self.playerScores = playerScores
@@ -1015,7 +1015,7 @@ class PlayerStatsViewModel {
 }
 
 struct PlayerRowView: View {
-    let player: Player
+    let player: BetComponents.Player
     let index: Int
     let lastHole: Int
     let score: String
@@ -1025,7 +1025,7 @@ struct PlayerRowView: View {
     let isExpanded: Bool
     let betManager: BetManager
     let playerScores: [UUID: [String]]
-    let teeBox: TeeBox
+    let teeBox: BetComponents.TeeBox
     let onExpandToggle: () -> Void
     
     var body: some View {
@@ -1073,26 +1073,26 @@ struct PlayerRowView: View {
 // Add before PlayerSelectionView
 enum MockData {
     static let allPlayers = [
-        Player(id: UUID(), firstName: "Jody", lastName: "Moss", email: "jody@example.com"),
-        Player(id: UUID(), firstName: "Bryan", lastName: "Crowder", email: "bryan@example.com"),
-        Player(id: UUID(), firstName: "Wade", lastName: "House", email: "wade@example.com"),
-        Player(id: UUID(), firstName: "Hardy", lastName: "Gordon", email: "hardy@example.com"),
-        Player(id: UUID(), firstName: "Rolf", lastName: "Morestead", email: "rolf@example.com"),
-        Player(id: UUID(), firstName: "Jim", lastName: "Tonore", email: "jim@example.com"),
-        Player(id: UUID(), firstName: "Chad", lastName: "Hill", email: "chad@example.com"),
-        Player(id: UUID(), firstName: "Nate", lastName: "Weant", email: "nate@example.com"),
-        Player(id: UUID(), firstName: "Mark", lastName: "Sutton", email: "mark@example.com"),
-        Player(id: UUID(), firstName: "Darren", lastName: "Sutton", email: "darren@example.com"),
-        Player(id: UUID(), firstName: "Justin", lastName: "Tarver", email: "justin@example.com"),
-        Player(id: UUID(), firstName: "Ron", lastName: "Shimwell", email: "ron@example.com"),
-        Player(id: UUID(), firstName: "Clay", lastName: "Shimwell", email: "clay@example.com"),
-        Player(id: UUID(), firstName: "Nick", lastName: "Ellison", email: "nick@example.com"),
-        Player(id: UUID(), firstName: "Ryan", lastName: "Nelson", email: "ryan@example.com")
+        BetComponents.Player(id: UUID(), firstName: "Jody", lastName: "Moss", email: "jody@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Bryan", lastName: "Crowder", email: "bryan@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Wade", lastName: "House", email: "wade@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Hardy", lastName: "Gordon", email: "hardy@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Rolf", lastName: "Morestead", email: "rolf@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Jim", lastName: "Tonore", email: "jim@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Chad", lastName: "Hill", email: "chad@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Nate", lastName: "Weant", email: "nate@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Mark", lastName: "Sutton", email: "mark@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Darren", lastName: "Sutton", email: "darren@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Justin", lastName: "Tarver", email: "justin@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Ron", lastName: "Shimwell", email: "ron@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Clay", lastName: "Shimwell", email: "clay@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Nick", lastName: "Ellison", email: "nick@example.com"),
+        BetComponents.Player(id: UUID(), firstName: "Ryan", lastName: "Nelson", email: "ryan@example.com")
     ]
     
     static private(set) var availablePlayers = allPlayers
     
-    static func removeSelectedPlayers(_ players: [Player]) {
+    static func removeSelectedPlayers(_ players: [BetComponents.Player]) {
         availablePlayers.removeAll(where: { player in
             players.contains(where: { $0.id == player.id })
         })

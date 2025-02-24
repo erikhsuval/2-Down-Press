@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreLocation
+import BetComponents
 
 // Then LocationManager
 class LocationManager: NSObject, ObservableObject {
@@ -28,14 +29,14 @@ class LocationManager: NSObject, ObservableObject {
 }
 
 class UserProfile: ObservableObject {
-    @Published var currentUser: Player?
+    @Published var currentUser: BetComponents.Player?
     private let userDefaults = UserDefaults.standard
         
     init() {
         loadUser()
     }
     
-    func saveUser(_ player: Player) {
+    func saveUser(_ player: BetComponents.Player) {
         let encoder = JSONEncoder()
         if let encoded = try? encoder.encode(player) {
             userDefaults.set(encoded, forKey: "currentUser")
@@ -45,7 +46,7 @@ class UserProfile: ObservableObject {
     
     private func loadUser() {
         if let userData = userDefaults.data(forKey: "currentUser"),
-           let player = try? JSONDecoder().decode(Player.self, from: userData) {
+           let player = try? JSONDecoder().decode(BetComponents.Player.self, from: userData) {
             currentUser = player
         }
     }
@@ -102,7 +103,7 @@ struct PlayerDetailsView: View {
                 Spacer()
                 
                 Button(action: {
-                    let player = Player(id: UUID(),
+                    let player = BetComponents.Player(id: UUID(),
                                       firstName: firstName,
                                       lastName: lastName,
                                       email: email)

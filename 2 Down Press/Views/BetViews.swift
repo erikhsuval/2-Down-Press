@@ -319,14 +319,14 @@ enum TeamPlayerSelection {
 }
 
 struct MultiPlayerSelectionView: View {
-    @Binding var selectedPlayers: [Player]
+    @Binding var selectedPlayers: [BetComponents.Player]
     let requiredCount: Int
-    let onComplete: ([Player]) -> Void
-    let allPlayers: [Player]
+    let onComplete: ([BetComponents.Player]) -> Void
+    let allPlayers: [BetComponents.Player]
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userProfile: UserProfile
     
-    var displayPlayers: [Player] {
+    var displayPlayers: [BetComponents.Player] {
         var players = allPlayers
         if let currentUser = userProfile.currentUser {
             players.insert(currentUser, at: 0)
@@ -375,9 +375,9 @@ struct MultiPlayerSelectionView: View {
 
 struct SkinsBetRow: View {
     let bet: SkinsBet
-    let player: Player
+    let player: BetComponents.Player
     let playerScores: [UUID: [String]]
-    let teeBox: TeeBox
+    let teeBox: BetComponents.TeeBox
     
     var betAmount: Double {
         let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)

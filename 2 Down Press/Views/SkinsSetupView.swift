@@ -1,12 +1,13 @@
 import SwiftUI
+import BetComponents
 
 class SkinsSetupViewModel: ObservableObject {
     @Published var amount: String = ""
     private let editingBet: SkinsBet?
-    private let players: [Player]
+    private let players: [BetComponents.Player]
     private var betManager: BetManager
     
-    init(editingBet: SkinsBet? = nil, players: [Player], betManager: BetManager) {
+    init(editingBet: SkinsBet? = nil, players: [BetComponents.Player], betManager: BetManager) {
         self.editingBet = editingBet
         self.players = players
         self.betManager = betManager
@@ -42,10 +43,11 @@ class SkinsSetupViewModel: ObservableObject {
 struct SkinsSetupView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var betManager: BetManager
+    @EnvironmentObject private var userProfile: UserProfile
     @StateObject private var viewModel: SkinsSetupViewModel
-    let players: [Player]
+    let players: [BetComponents.Player]
     
-    init(editingBet: SkinsBet? = nil, players: [Player]) {
+    init(editingBet: SkinsBet? = nil, players: [BetComponents.Player]) {
         self.players = players
         _viewModel = StateObject(wrappedValue: SkinsSetupViewModel(editingBet: editingBet, players: players, betManager: BetManager()))
     }

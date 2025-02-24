@@ -1,6 +1,11 @@
-import Testing
+import Foundation
+#if canImport(XCTest)
+import XCTest
+#endif
 @testable import BetComponents
 
-@Test func example() async throws {
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+final class BetComponentsTests: XCTestCase {
+    func testExample() throws {
+        // Add your test implementation here
+    }
 }

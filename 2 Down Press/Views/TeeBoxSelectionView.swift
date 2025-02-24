@@ -8,6 +8,17 @@ struct TeeBoxSelectionView: View {
     @EnvironmentObject private var userProfile: UserProfile
     @EnvironmentObject private var betManager: BetManager
     
+    private var betComponentsTeeBox: BetComponents.TeeBox {
+        switch selectedTeeBox.name.lowercased() {
+        case "black": return .black
+        case "blue": return .blue
+        case "white": return .white
+        case "gold": return .gold
+        case "red": return .red
+        default: return .white
+        }
+    }
+    
     var body: some View {
         Form(content: {
             Section(header: Text("Select Tee Box")) {
@@ -23,7 +34,7 @@ struct TeeBoxSelectionView: View {
         .navigationTitle("Select Tee Box")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                NavigationLink(destination: ScorecardView(course: course, teeBox: selectedTeeBox)) {
+                NavigationLink(destination: ScorecardView(course: course, teeBox: betComponentsTeeBox)) {
                     Text("Next")
                 }
             }

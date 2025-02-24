@@ -6,9 +6,9 @@ class DoDaSetupViewModel: ObservableObject {
     @Published var amount = ""
     private let editingBet: DoDaBet?
     private var betManager: BetManager
-    private let selectedPlayers: [Player]
+    private let selectedPlayers: [BetComponents.Player]
     
-    init(editingBet: DoDaBet? = nil, betManager: BetManager, selectedPlayers: [Player]) {
+    init(editingBet: DoDaBet? = nil, betManager: BetManager, selectedPlayers: [BetComponents.Player]) {
         self.editingBet = editingBet
         self.betManager = betManager
         self.selectedPlayers = selectedPlayers
@@ -49,12 +49,14 @@ class DoDaSetupViewModel: ObservableObject {
 struct DoDaSetupView: View {
     @StateObject private var viewModel: DoDaSetupViewModel
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var betManager: BetManager
-    let selectedPlayers: [Player]
+    @EnvironmentObject private var userProfile: UserProfile
+    let selectedPlayers: [BetComponents.Player]
+    let betManager: BetManager
     
-    init(editingBet: DoDaBet? = nil, selectedPlayers: [Player], betManager: BetManager) {
+    init(editingBet: DoDaBet? = nil, selectedPlayers: [BetComponents.Player], betManager: BetManager) {
         _viewModel = StateObject(wrappedValue: DoDaSetupViewModel(editingBet: editingBet, betManager: betManager, selectedPlayers: selectedPlayers))
         self.selectedPlayers = selectedPlayers
+        self.betManager = betManager
     }
     
     var body: some View {

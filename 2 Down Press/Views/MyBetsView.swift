@@ -1,4 +1,5 @@
 import SwiftUI
+import BetComponents
 
 struct MyBetsView: View {
     @EnvironmentObject private var betManager: BetManager
@@ -15,8 +16,8 @@ struct MyBetsView: View {
     @State private var showNewDoDaBet = false
     @State private var betToEdit: Any? = nil
     
-    var allPlayers: [Player] {
-        var players = Set<Player>()
+    var allPlayers: [BetComponents.Player] {
+        var players = Set<BetComponents.Player>()
         
         // Add players from individual bets
         for bet in betManager.individualBets {

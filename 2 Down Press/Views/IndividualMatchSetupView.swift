@@ -2,8 +2,8 @@ import SwiftUI
 import BetComponents
 
 class IndividualMatchSetupViewModel: ObservableObject {
-    @Published var selectedPlayer1: Player?
-    @Published var selectedPlayer2: Player?
+    @Published var selectedPlayer1: BetComponents.Player?
+    @Published var selectedPlayer2: BetComponents.Player?
     @Published var perHoleAmount: Double = 0
     @Published var perBirdieAmount: Double = 0
     @Published var pressOn9and18 = false
@@ -65,9 +65,11 @@ struct IndividualMatchSetupView: View {
     @StateObject private var viewModel: IndividualMatchSetupViewModel
     @State private var showPlayerSelection = false
     @State private var selectingForFirstPlayer = true
-    let selectedPlayers: [Player]
+    let editingBet: IndividualMatchBet?
+    let selectedPlayers: [BetComponents.Player]
     
-    init(editingBet: IndividualMatchBet? = nil, selectedPlayers: [Player]) {
+    init(editingBet: IndividualMatchBet? = nil, selectedPlayers: [BetComponents.Player]) {
+        self.editingBet = editingBet
         self.selectedPlayers = selectedPlayers
         _viewModel = StateObject(wrappedValue: IndividualMatchSetupViewModel(editingBet: editingBet, betManager: BetManager()))
     }

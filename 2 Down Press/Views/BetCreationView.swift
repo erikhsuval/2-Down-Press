@@ -5,7 +5,7 @@ struct BetCreationView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userProfile: UserProfile
     @EnvironmentObject var betManager: BetManager
-    let selectedPlayers: [Player]
+    let selectedPlayers: [BetComponents.Player]
     @State private var selectedBetType: BetType?
     @State private var showAnimation = false
     @State private var animationOffset: CGFloat = 0

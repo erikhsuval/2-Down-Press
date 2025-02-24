@@ -1,15 +1,29 @@
 import SwiftUI
+import BetComponents
 
 struct PlayerBetDetailsView: View {
-    let player: Player
-    let betManager: BetManager
+    let player: BetComponents.Player
+    let betManager: BetComponents.BetManager
     let playerScores: [UUID: [String]]
-    let teeBox: TeeBox
+    let teeBox: BetComponents.TeeBox
+    
+    private var individualBets: [IndividualMatchBet] {
+        betManager.individualBets.filter { bet in
+            bet.player1.id == player.id || bet.player2.id == player.id
+        }
+    }
+    
+    private var fourBallBets: [FourBallMatchBet] {
+        betManager.fourBallBets.filter { bet in
+            [bet.team1Player1.id, bet.team1Player2.id,
+             bet.team2Player1.id, bet.team2Player2.id].contains(player.id)
+        }
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Individual Matches
-            ForEach(betManager.individualBets.filter { $0.player1.id == player.id || $0.player2.id == player.id }) { bet in
+            ForEach(individualBets) { bet in
                 HStack {
                     Text("\(bet.player1.firstName) vs \(bet.player2.firstName)")
                     Spacer()
@@ -21,12 +35,7 @@ struct PlayerBetDetailsView: View {
             }
             
             // Four Ball Matches
-            ForEach(betManager.fourBallBets.filter { 
-                $0.team1Player1.id == player.id || 
-                $0.team1Player2.id == player.id || 
-                $0.team2Player1.id == player.id || 
-                $0.team2Player2.id == player.id 
-            }) { bet in
+            ForEach(fourBallBets) { bet in
                 HStack {
                     Text("\(bet.team1Player1.firstName)/\(bet.team1Player2.firstName) vs \(bet.team2Player1.firstName)/\(bet.team2Player2.firstName)")
                     Spacer()

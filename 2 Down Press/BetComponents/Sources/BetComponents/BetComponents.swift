@@ -4,9 +4,9 @@
 import SwiftUI
 
 public extension Color {
-    static public let primaryGreen = Color("PrimaryGreen")
-    static public let secondaryGold = Color("SecondaryGold")
-    static public let backgroundGray = Color(red: 0.95, green: 0.95, blue: 0.95)
+    static let primaryGreen = Color("PrimaryGreen")
+    static let secondaryGold = Color("SecondaryGold")
+    static let backgroundGray = Color(red: 0.95, green: 0.95, blue: 0.95)
 }
 
 // MARK: - TeamPlayerSelection Enum

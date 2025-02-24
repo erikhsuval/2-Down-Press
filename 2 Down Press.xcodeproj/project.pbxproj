@@ -8,8 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		5218516A2D32F07D009D4B4A /* buildServer.json in Resources */ = {isa = PBXBuildFile; fileRef = 521851692D32F07D009D4B4A /* buildServer.json */; };
+		523763A32D6CB94900D14C54 /* BetComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 523763A22D6CB94900D14C54 /* BetComponents */; };
+		523763A62D6CB99A00D14C54 /* BetComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 523763A52D6CB99A00D14C54 /* BetComponents */; };
+		523763AD2D6CBD1000D14C54 /* BetComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 523763AC2D6CBD1000D14C54 /* BetComponents */; };
 		525EC7862D47359E0017BF10 /* .swiftlint.yml in Resources */ = {isa = PBXBuildFile; fileRef = 525EC7852D4734FA0017BF10 /* .swiftlint.yml */; };
-		52796A5B2D5D9E2D00B3380E /* BetComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 52796A5A2D5D9E2D00B3380E /* BetComponents */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -65,7 +67,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				52796A5B2D5D9E2D00B3380E /* BetComponents in Frameworks */,
+				523763A62D6CB99A00D14C54 /* BetComponents in Frameworks */,
+				523763AD2D6CBD1000D14C54 /* BetComponents in Frameworks */,
+				523763A32D6CB94900D14C54 /* BetComponents in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -86,6 +90,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		5237639E2D6CB2C700D14C54 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		524861FA2D32CE8900C1412E = {
 			isa = PBXGroup;
 			children = (
@@ -94,6 +105,7 @@
 				524862052D32CE8900C1412E /* 2 Down Press */,
 				524862162D32CE8A00C1412E /* 2 Down PressTests */,
 				524862202D32CE8A00C1412E /* 2 Down PressUITests */,
+				5237639E2D6CB2C700D14C54 /* Frameworks */,
 				524862042D32CE8900C1412E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -158,13 +170,16 @@
 			buildRules = (
 			);
 			dependencies = (
+				523763AA2D6CBCF200D14C54 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				524862052D32CE8900C1412E /* 2 Down Press */,
 			);
 			name = "2 Down Press";
 			packageProductDependencies = (
-				52796A5A2D5D9E2D00B3380E /* BetComponents */,
+				523763A22D6CB94900D14C54 /* BetComponents */,
+				523763A52D6CB99A00D14C54 /* BetComponents */,
+				523763AC2D6CBD1000D14C54 /* BetComponents */,
 			);
 			productName = "2 Down Press";
 			productReference = 524862032D32CE8900C1412E /* 2 Down Press.app */;
@@ -249,7 +264,7 @@
 			mainGroup = 524861FA2D32CE8900C1412E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				52796A592D5D9E2D00B3380E /* XCLocalSwiftPackageReference "2 Down Press/BetComponents" */,
+				523763AB2D6CBD1000D14C54 /* XCLocalSwiftPackageReference "2 Down Press/BetComponents" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 524862042D32CE8900C1412E /* Products */;
@@ -358,6 +373,10 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		523763AA2D6CBCF200D14C54 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = 523763A92D6CBCF200D14C54 /* BetComponents */;
+		};
 		524862152D32CE8A00C1412E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 524862022D32CE8900C1412E /* 2 Down Press */;
@@ -666,14 +685,26 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		52796A592D5D9E2D00B3380E /* XCLocalSwiftPackageReference "2 Down Press/BetComponents" */ = {
+		523763AB2D6CBD1000D14C54 /* XCLocalSwiftPackageReference "2 Down Press/BetComponents" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "2 Down Press/BetComponents";
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		52796A5A2D5D9E2D00B3380E /* BetComponents */ = {
+		523763A22D6CB94900D14C54 /* BetComponents */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BetComponents;
+		};
+		523763A52D6CB99A00D14C54 /* BetComponents */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BetComponents;
+		};
+		523763A92D6CBCF200D14C54 /* BetComponents */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = BetComponents;
+		};
+		523763AC2D6CBD1000D14C54 /* BetComponents */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = BetComponents;
 		};

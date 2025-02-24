@@ -19,6 +19,35 @@ public struct IndividualMatchBet: Identifiable {
         self.perBirdieAmount = perBirdieAmount
         self.pressOn9and18 = pressOn9and18
     }
+    
+    public func calculateWinnings(playerScores: [UUID: [String]], teeBox: TeeBox) -> Double {
+        guard let player1Scores = playerScores[player1.id],
+              let player2Scores = playerScores[player2.id] else {
+            return 0
+        }
+        
+        var totalWinnings = 0.0
+        
+        // Calculate hole-by-hole winnings
+        for (index, (p1Score, p2Score)) in zip(player1Scores, player2Scores).enumerated() {
+            guard let score1 = Int(p1Score), let score2 = Int(p2Score) else { continue }
+            if score1 < score2 {
+                totalWinnings += perHoleAmount
+            } else if score2 < score1 {
+                totalWinnings -= perHoleAmount
+            }
+            
+            // Add birdie bonus
+            if score1 < teeBox.holes[index].par {
+                totalWinnings += perBirdieAmount
+            }
+            if score2 < teeBox.holes[index].par {
+                totalWinnings -= perBirdieAmount
+            }
+        }
+        
+        return totalWinnings
+    }
 }
 
 public struct FourBallMatchBet: Identifiable {
@@ -42,6 +71,57 @@ public struct FourBallMatchBet: Identifiable {
         self.perHoleAmount = perHoleAmount
         self.perBirdieAmount = perBirdieAmount
         self.pressOn9and18 = pressOn9and18
+    }
+    
+    public func calculateWinnings(playerScores: [UUID: [String]], teeBox: TeeBox) -> Double {
+        guard let team1Player1Scores = playerScores[team1Player1.id],
+              let team1Player2Scores = playerScores[team1Player2.id],
+              let team2Player1Scores = playerScores[team2Player1.id],
+              let team2Player2Scores = playerScores[team2Player2.id] else {
+            return 0
+        }
+        
+        var totalWinnings = 0.0
+        
+        // Calculate hole-by-hole winnings
+        for holeIndex in 0..<18 {
+            // Get valid scores for this hole
+            guard let score1p1 = Int(team1Player1Scores[holeIndex]),
+                  let score1p2 = Int(team1Player2Scores[holeIndex]),
+                  let score2p1 = Int(team2Player1Scores[holeIndex]),
+                  let score2p2 = Int(team2Player2Scores[holeIndex]) else {
+                continue
+            }
+            
+            // Get best score for each team
+            let team1BestScore = min(score1p1, score1p2)
+            let team2BestScore = min(score2p1, score2p2)
+            
+            // Calculate hole winner
+            if team1BestScore < team2BestScore {
+                totalWinnings += perHoleAmount
+            } else if team2BestScore < team1BestScore {
+                totalWinnings -= perHoleAmount
+            }
+            
+            // Add birdie bonuses for team 1
+            if score1p1 < teeBox.holes[holeIndex].par {
+                totalWinnings += perBirdieAmount
+            }
+            if score1p2 < teeBox.holes[holeIndex].par {
+                totalWinnings += perBirdieAmount
+            }
+            
+            // Subtract birdie bonuses for team 2
+            if score2p1 < teeBox.holes[holeIndex].par {
+                totalWinnings -= perBirdieAmount
+            }
+            if score2p2 < teeBox.holes[holeIndex].par {
+                totalWinnings -= perBirdieAmount
+            }
+        }
+        
+        return totalWinnings
     }
 }
 
@@ -96,6 +176,37 @@ public struct SkinsBet: Identifiable {
         self.id = id
         self.amount = amount
         self.players = players
+    }
+    
+    public func calculateWinnings(playerScores: [UUID: [String]], teeBox: TeeBox) -> [UUID: Double] {
+        var winnings: [UUID: Double] = Dictionary(uniqueKeysWithValues: players.map { ($0.id, 0.0) })
+        var skinsWon: [UUID: Int] = Dictionary(uniqueKeysWithValues: players.map { ($0.id, 0) })
+        
+        for holeIndex in 0..<18 {
+            let scores = players.compactMap { player -> (UUID, Int)? in
+                guard let scoreStr = playerScores[player.id]?[holeIndex],
+                      let score = Int(scoreStr) else { return nil }
+                return (player.id, score)
+            }
+            guard scores.count == players.count else { continue }
+            
+            let lowestScore = scores.min { $0.1 < $1.1 }?.1
+            let playersWithLowest = scores.filter { $0.1 == lowestScore }
+            
+            if playersWithLowest.count == 1 {
+                skinsWon[playersWithLowest[0].0, default: 0] += 1
+            }
+        }
+        
+        let totalSkins = skinsWon.values.reduce(0, +)
+        if totalSkins > 0 {
+            let potPerSkin = Double(players.count) * amount / Double(totalSkins)
+            for (playerId, skins) in skinsWon {
+                winnings[playerId] = Double(skins) * potPerSkin
+            }
+        }
+        
+        return winnings
     }
 }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import BetComponents
 
 struct TheSheetView: View {
     @EnvironmentObject private var betManager: BetManager
