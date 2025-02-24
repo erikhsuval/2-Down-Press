@@ -30,8 +30,7 @@ class SkinsSetupViewModel: ObservableObject {
         guard let amountValue = Double(amount) else { return }
         betManager.addSkinsBet(
             amount: amountValue,
-            players: players,
-            id: editingBet?.id
+            players: players
         )
     }
     

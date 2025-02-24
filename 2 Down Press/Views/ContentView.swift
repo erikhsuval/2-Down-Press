@@ -185,11 +185,11 @@ struct ContentView: View {
                                 .environmentObject(userProfile)
                                 .environmentObject(betManager)
                         } label: {
-                            ButtonView(title: "Play", systemImage: "figure.golf")
+                            MainMenuButtonView(title: "Play", systemImage: "figure.golf")
                         }
                         
                         Button(action: { showMenu.toggle() }) {
-                            ButtonView(title: "Menu", systemImage: "line.3.horizontal")
+                            MainMenuButtonView(title: "Menu", systemImage: "line.3.horizontal")
                         }
                     }
                     .padding(.bottom, 50)
@@ -206,7 +206,7 @@ struct ContentView: View {
     }
 }
 
-struct ButtonView: View {
+struct MainMenuButtonView: View {
     let title: String
     let systemImage: String
     
@@ -222,7 +222,7 @@ struct ButtonView: View {
         .frame(height: 55)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.green.opacity(0.8))
+                .fill(Color.primaryGreen.opacity(0.8))
         )
         .padding(.horizontal, 30)
     }
@@ -244,10 +244,13 @@ struct GolfCourseSelectionView: View {
             } else {
                 List {
                     ForEach(locationManager.courses) { course in
-                        NavigationLink(destination: TeeTimeSelectionView(course: course, locationManager: locationManager)
+                        NavigationLink(destination: TeeBoxSelectionView(course: course)
                             .environmentObject(userProfile)
                             .environmentObject(betManager)) {
-                            CourseRow(course: course)
+                            VStack(alignment: .leading) {
+                                Text(course.name)
+                                    .font(.headline)
+                            }
                         }
                     }
                 }
@@ -267,9 +270,6 @@ struct CourseRow: View {
         VStack(alignment: .leading) {
             Text(course.name)
                 .font(.headline)
-            Text("\(course.city), \(course.state)")
-                .font(.subheadline)
-                .foregroundColor(.gray)
         }
     }
 }

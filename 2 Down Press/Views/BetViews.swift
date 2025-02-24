@@ -250,14 +250,14 @@ struct DoDaBetsSection: View {
                             Text(bet.isPool ? "Pool" : "Per Do-Da")
                                 .font(.headline)
                             Text(String(format: "$%.2f", bet.amount))
-                                .foregroundColor(.green)
+                                .foregroundColor(.primaryGreen)
                         }
                         
                         Spacer()
                         
                         Button(action: { onEdit(bet) }) {
                             Image(systemName: "pencil")
-                                .foregroundColor(.blue)
+                                .foregroundColor(.primaryGreen)
                         }
                         
                         Button(action: { onDelete(bet) }) {
@@ -322,11 +322,12 @@ struct MultiPlayerSelectionView: View {
     @Binding var selectedPlayers: [Player]
     let requiredCount: Int
     let onComplete: ([Player]) -> Void
+    let allPlayers: [Player]
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userProfile: UserProfile
     
-    var allPlayers: [Player] {
-        var players = MockData.allPlayers
+    var displayPlayers: [Player] {
+        var players = allPlayers
         if let currentUser = userProfile.currentUser {
             players.insert(currentUser, at: 0)
         }
@@ -336,7 +337,7 @@ struct MultiPlayerSelectionView: View {
     var body: some View {
         NavigationView {
             List {
-                ForEach(allPlayers) { player in
+                ForEach(displayPlayers) { player in
                     Button(action: {
                         if selectedPlayers.contains(where: { $0.id == player.id }) {
                             selectedPlayers.removeAll { $0.id == player.id }
@@ -369,73 +370,6 @@ struct MultiPlayerSelectionView: View {
                 .disabled(selectedPlayers.count != requiredCount)
             )
         }
-    }
-}
-
-struct DoDaSetupView: View {
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var betManager: BetManager
-    @EnvironmentObject private var userProfile: UserProfile
-    let editingBet: DoDaBet?
-    
-    @State private var isPool = false
-    @State private var amount = ""
-    
-    init(editingBet: DoDaBet? = nil) {
-        self.editingBet = editingBet
-        _isPool = State(initialValue: editingBet?.isPool ?? false)
-        _amount = State(initialValue: editingBet != nil ? String(editingBet!.amount) : "")
-    }
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Type")) {
-                    Picker("Type", selection: $isPool) {
-                        Text("Per Do-Da").tag(false)
-                        Text("Pool").tag(true)
-                    }
-                }
-                
-                Section(header: Text("Amount")) {
-                    TextField("Amount", text: $amount)
-                        .keyboardType(.decimalPad)
-                }
-            }
-            .navigationTitle(editingBet != nil ? "Edit Do-Da" : "New Do-Da")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(editingBet != nil ? "Update" : "Create") {
-                        createBet()
-                        dismiss()
-                    }
-                    .disabled(!isValid)
-                }
-            }
-        }
-    }
-    
-    private var isValid: Bool {
-        !amount.isEmpty && (Double(amount) ?? 0) > 0
-    }
-    
-    private func createBet() {
-        guard let amountValue = Double(amount) else { return }
-        
-        if let existingBet = editingBet {
-            betManager.deleteDoDaBet(existingBet)
-        }
-        
-        betManager.addDoDaBet(
-            amount: amountValue,
-            isPool: isPool
-        )
     }
 }
 
@@ -505,102 +439,5 @@ struct SkinsBetRow: View {
                 .font(.caption)
                 .foregroundColor(.gray)
         }
-    }
-}
-
-struct PlayerBetDetailsView: View {
-    let player: Player
-    let betManager: BetManager
-    let playerScores: [UUID: [String]]
-    let teeBox: TeeBox
-    
-    var skinsBets: [SkinsBet] {
-        print("Checking skins bets for player: \(player.firstName)") // Debug print
-        print("Total skins bets in betManager: \(betManager.skinsBets.count)") // Debug print
-        let bets = betManager.skinsBets.filter { bet in
-            let isInBet = bet.players.contains { $0.id == player.id }
-            print("Bet \(bet.id): player \(player.firstName) is in bet: \(isInBet)") // Debug print
-            return isInBet
-        }
-        print("Found \(bets.count) skins bets for player \(player.firstName)")
-        return bets
-    }
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            // Individual Match Bets
-            let individualBets = betManager.individualBets.filter { 
-                $0.player1.id == player.id || $0.player2.id == player.id 
-            }
-            if !individualBets.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Individual Matches")
-                        .font(.headline)
-                    ForEach(individualBets) { bet in
-                        IndividualBetRow(bet: bet, player: player)
-                    }
-                }
-            }
-            
-            // Four Ball Match Bets
-            let fourBallBets = betManager.fourBallBets.filter { bet in
-                bet.team1Player1.id == player.id ||
-                bet.team1Player2.id == player.id ||
-                bet.team2Player1.id == player.id ||
-                bet.team2Player2.id == player.id
-            }
-            if !fourBallBets.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Four Ball Matches")
-                        .font(.headline)
-                    ForEach(fourBallBets) { bet in
-                        FourBallBetRow(bet: bet, player: player)
-                    }
-                }
-            }
-            
-            // Alabama Bets
-            let alabamaBets = betManager.alabamaBets.filter { bet in
-                bet.teams.contains { team in
-                    team.contains { $0.id == player.id }
-                }
-            }
-            if !alabamaBets.isEmpty {
-        VStack(alignment: .leading, spacing: 8) {
-                    Text("Alabama Games")
-                        .font(.headline)
-                    ForEach(alabamaBets) { bet in
-                        AlabamaBetSummaryRow(bet: bet, player: player)
-                    }
-                }
-            }
-            
-            // Do-Da Bets
-            let doDaBets = betManager.doDaBets.filter { bet in
-                bet.players.contains { $0.id == player.id }
-            }
-            if !doDaBets.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Do-Da's")
-                        .font(.headline)
-                    ForEach(doDaBets) { bet in
-                        DoDaBetRow(bet: bet, player: player, playerScores: playerScores, teeBox: teeBox)
-                    }
-                }
-            }
-            
-            // Skins Bets
-            if !skinsBets.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Skins")
-                        .font(.headline)
-                    ForEach(skinsBets) { bet in
-                        SkinsBetRow(bet: bet, player: player, playerScores: playerScores, teeBox: teeBox)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-        }
-        .padding()
     }
 } 

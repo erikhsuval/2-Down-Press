@@ -15,6 +15,51 @@ struct MyBetsView: View {
     @State private var showNewDoDaBet = false
     @State private var betToEdit: Any? = nil
     
+    var allPlayers: [Player] {
+        var players = Set<Player>()
+        
+        // Add players from individual bets
+        for bet in betManager.individualBets {
+            players.insert(bet.player1)
+            players.insert(bet.player2)
+        }
+        
+        // Add players from four ball bets
+        for bet in betManager.fourBallBets {
+            players.insert(bet.team1Player1)
+            players.insert(bet.team1Player2)
+            players.insert(bet.team2Player1)
+            players.insert(bet.team2Player2)
+        }
+        
+        // Add players from alabama bets
+        for bet in betManager.alabamaBets {
+            for team in bet.teams {
+                players.formUnion(team)
+            }
+            if let swingMan = bet.swingMan {
+                players.insert(swingMan)
+            }
+        }
+        
+        // Add players from do-da bets
+        for bet in betManager.doDaBets {
+            players.formUnion(bet.players)
+        }
+        
+        // Add players from skins bets
+        for bet in betManager.skinsBets {
+            players.formUnion(bet.players)
+        }
+        
+        // Always include current user if available
+        if let currentUser = userProfile.currentUser {
+            players.insert(currentUser)
+        }
+        
+        return Array(players)
+    }
+    
     var myIndividualBets: [IndividualMatchBet] {
         guard let currentUser = userProfile.currentUser else { return [] }
         return betManager.individualBets.filter { bet in
@@ -147,35 +192,35 @@ struct MyBetsView: View {
             }
             .sheet(isPresented: $showNewSkinsBet) {
                 NavigationStack {
-                    SkinsSetupView(editingBet: nil, players: betManager.allPlayers)
+                    SkinsSetupView(editingBet: nil, players: allPlayers)
                         .environmentObject(betManager)
                         .environmentObject(userProfile)
                 }
             }
             .sheet(isPresented: $showNewIndividualBet) {
                 NavigationView {
-                    IndividualMatchSetupView(editingBet: nil, selectedPlayers: betManager.allPlayers)
+                    IndividualMatchSetupView(editingBet: nil, selectedPlayers: allPlayers)
                         .environmentObject(betManager)
                         .environmentObject(userProfile)
                 }
             }
             .sheet(isPresented: $showNewFourBallBet) {
                 NavigationView {
-                    FourBallMatchSetupView(editingBet: nil, selectedPlayers: betManager.allPlayers)
+                    FourBallMatchSetupView(editingBet: nil, selectedPlayers: allPlayers)
                         .environmentObject(betManager)
                         .environmentObject(userProfile)
                 }
             }
             .sheet(isPresented: $showNewAlabamaBet) {
                 NavigationView {
-                    AlabamaSetupView(editingBet: nil)
+                    AlabamaSetupView(editingBet: nil, allPlayers: allPlayers)
                         .environmentObject(betManager)
                         .environmentObject(userProfile)
                 }
             }
             .sheet(isPresented: $showNewDoDaBet) {
                 NavigationView {
-                    DoDaSetupView(editingBet: nil)
+                    DoDaSetupView(editingBet: nil, selectedPlayers: allPlayers, betManager: betManager)
                         .environmentObject(betManager)
                         .environmentObject(userProfile)
                 }
@@ -183,7 +228,7 @@ struct MyBetsView: View {
             .sheet(isPresented: $showEditIndividualBet) {
                 if let bet = betToEdit as? IndividualMatchBet {
                     NavigationView {
-                        IndividualMatchSetupView(editingBet: bet)
+                        IndividualMatchSetupView(editingBet: bet, selectedPlayers: allPlayers)
                             .environmentObject(betManager)
                             .environmentObject(userProfile)
                     }
@@ -192,7 +237,7 @@ struct MyBetsView: View {
             .sheet(isPresented: $showEditFourBallBet) {
                 if let bet = betToEdit as? FourBallMatchBet {
                     NavigationView {
-                        FourBallMatchSetupView(editingBet: bet)
+                        FourBallMatchSetupView(editingBet: bet, selectedPlayers: allPlayers)
                             .environmentObject(betManager)
                             .environmentObject(userProfile)
                     }
@@ -201,7 +246,7 @@ struct MyBetsView: View {
             .sheet(isPresented: $showEditAlabamaBet) {
                 if let bet = betToEdit as? AlabamaBet {
                     NavigationView {
-                        AlabamaSetupView(editingBet: bet)
+                        AlabamaSetupView(editingBet: bet, allPlayers: allPlayers)
                             .environmentObject(betManager)
                             .environmentObject(userProfile)
                     }
@@ -210,7 +255,7 @@ struct MyBetsView: View {
             .sheet(isPresented: $showEditSkinsBet) {
                 if let bet = betToEdit as? SkinsBet {
                     NavigationView {
-                        SkinsSetupView(editingBet: bet, players: betManager.allPlayers)
+                        SkinsSetupView(editingBet: bet, players: allPlayers)
                             .environmentObject(betManager)
                             .environmentObject(userProfile)
                     }
@@ -219,7 +264,7 @@ struct MyBetsView: View {
             .sheet(isPresented: $showEditDoDaBet) {
                 if let bet = betToEdit as? DoDaBet {
                     NavigationView {
-                        DoDaSetupView(editingBet: bet)
+                        DoDaSetupView(editingBet: bet, selectedPlayers: allPlayers, betManager: betManager)
                             .environmentObject(betManager)
                             .environmentObject(userProfile)
                     }

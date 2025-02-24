@@ -79,113 +79,31 @@ struct AlabamaSetupView: View {
     @State private var showPlayerSelection = false
     @State private var currentTeamIndex = 0
     @State private var selectedPlayers: [Player] = []
+    let allPlayers: [Player]
     
-    init(editingBet: AlabamaBet? = nil) {
+    init(editingBet: AlabamaBet? = nil, allPlayers: [Player]) {
+        self.allPlayers = allPlayers
         _viewModel = StateObject(wrappedValue: AlabamaSetupViewModel(editingBet: editingBet, betManager: BetManager()))
     }
     
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Game Setup")) {
-                    Stepper("Number of Teams: \(viewModel.numberOfTeams)", value: $viewModel.numberOfTeams, in: 2...4)
-                        .onChange(of: viewModel.numberOfTeams) { oldValue, newValue in
-                            if viewModel.teams.count < newValue {
-                                viewModel.teams.append([])
-                            } else if viewModel.teams.count > newValue {
-                                viewModel.teams = Array(viewModel.teams.prefix(newValue))
-                            }
-                        }
-                    Stepper("Players per Team: \(viewModel.playersPerTeam)", value: $viewModel.playersPerTeam, in: 2...6)
-                    Stepper("Counting Scores: \(viewModel.countingScores)", value: $viewModel.countingScores, in: 2...viewModel.playersPerTeam)
-                }
-                
-                Section(header: Text("Teams")) {
-                    ForEach(0..<viewModel.teams.count, id: \.self) { teamIndex in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Team \(teamIndex + 1)")
-                                .font(.headline)
-                            
-                            if viewModel.teams[teamIndex].isEmpty {
-                                Button(action: {
-                                    currentTeamIndex = teamIndex
-                                    selectedPlayers = []
-                                    showPlayerSelection = true
-                                }) {
-                                    Text("Select Players")
-                                        .foregroundColor(.blue)
-                                }
-                            } else {
-                                ForEach(viewModel.teams[teamIndex], id: \.id) { player in
-                                    Text(player.firstName)
-                                        .foregroundColor(.primary)
-                                }
-                                Button(action: {
-                                    currentTeamIndex = teamIndex
-                                    selectedPlayers = viewModel.teams[teamIndex]
-                                    showPlayerSelection = true
-                                }) {
-                                    Text("Change Players")
-                                        .foregroundColor(.blue)
-                                }
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
-                }
-                
-                Section(header: Text("Amounts")) {
-                    BetAmountField(
-                        label: "Alabama",
-                        emoji: "🎯",
-                        amount: Binding(
-                            get: { Double(viewModel.alabamaAmount) ?? 0 },
-                            set: { viewModel.alabamaAmount = String($0) }
-                        )
-                    )
-                    
-                    BetAmountField(
-                        label: "Low-Ball",
-                        emoji: "⛳️",
-                        amount: Binding(
-                            get: { Double(viewModel.lowBallAmount) ?? 0 },
-                            set: { viewModel.lowBallAmount = String($0) }
-                        )
-                    )
-                    
-                    BetAmountField(
-                        label: "Birdies",
-                        emoji: "🐦",
-                        amount: Binding(
-                            get: { Double(viewModel.perBirdieAmount) ?? 0 },
-                            set: { viewModel.perBirdieAmount = String($0) }
-                        )
-                    )
-                }
+                gameSetupSection
+                teamsSection
+                amountsSection
             }
             .navigationTitle(viewModel.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(viewModel.navigationTitle == "Edit Alabama Game" ? "Update" : "Create") {
-                        viewModel.createBet()
-                        dismiss()
-                    }
-                    .disabled(!viewModel.isValid)
-                }
-            }
+            .toolbar { toolbarContent }
             .sheet(isPresented: $showPlayerSelection) {
                 MultiPlayerSelectionView(
                     selectedPlayers: $selectedPlayers,
                     requiredCount: viewModel.playersPerTeam,
                     onComplete: { players in
                         viewModel.updateTeams(at: currentTeamIndex, with: players)
-                    }
+                    },
+                    allPlayers: allPlayers
                 )
                 .environmentObject(userProfile)
             }
@@ -194,44 +112,117 @@ struct AlabamaSetupView: View {
             viewModel.updateBetManager(betManager)
         }
     }
-}
-
-struct MultiPlayerSelectionView: View {
-    @Binding var selectedPlayers: [Player]
-    let requiredCount: Int
-    let onComplete: ([Player]) -> Void
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var userProfile: UserProfile
     
-    var body: some View {
-        NavigationView {
-            List(MockData.allPlayers) { player in
-                Button(action: {
-                    if selectedPlayers.contains(player) {
-                        selectedPlayers.removeAll { $0.id == player.id }
-                    } else if selectedPlayers.count < requiredCount {
-                        selectedPlayers.append(player)
-                    }
-                }) {
-                    HStack {
-                        Text(player.firstName + " " + player.lastName)
-                        Spacer()
-                        if selectedPlayers.contains(player) {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.primaryGreen)
-                        }
+    private var gameSetupSection: some View {
+        Section(header: Text("Game Setup")) {
+            Stepper("Number of Teams: \(viewModel.numberOfTeams)", value: $viewModel.numberOfTeams, in: 2...4)
+                .onChange(of: viewModel.numberOfTeams) { oldValue, newValue in
+                    if viewModel.teams.count < newValue {
+                        viewModel.teams.append([])
+                    } else if viewModel.teams.count > newValue {
+                        viewModel.teams = Array(viewModel.teams.prefix(newValue))
                     }
                 }
+            Stepper("Players per Team: \(viewModel.playersPerTeam)", value: $viewModel.playersPerTeam, in: 2...6)
+            Stepper("Counting Scores: \(viewModel.countingScores)", value: $viewModel.countingScores, in: 2...viewModel.playersPerTeam)
+        }
+    }
+    
+    private var teamsSection: some View {
+        Section(header: Text("Teams")) {
+            ForEach(0..<viewModel.teams.count, id: \.self) { teamIndex in
+                TeamRow(
+                    teamIndex: teamIndex,
+                    team: viewModel.teams[teamIndex],
+                    onSelectPlayers: {
+                        currentTeamIndex = teamIndex
+                        selectedPlayers = []
+                        showPlayerSelection = true
+                    },
+                    onChangePlayers: {
+                        currentTeamIndex = teamIndex
+                        selectedPlayers = viewModel.teams[teamIndex]
+                        showPlayerSelection = true
+                    }
+                )
             }
-            .navigationTitle("Select Players")
-            .navigationBarItems(
-                leading: Button("Cancel") { dismiss() },
-                trailing: Button("Done") {
-                    onComplete(selectedPlayers)
-                    dismiss()
-                }
-                .disabled(selectedPlayers.count != requiredCount)
+        }
+    }
+    
+    private var amountsSection: some View {
+        Section(header: Text("Amounts")) {
+            BetAmountField(
+                label: "Alabama",
+                emoji: "🎯",
+                amount: Binding(
+                    get: { Double(viewModel.alabamaAmount) ?? 0 },
+                    set: { viewModel.alabamaAmount = String($0) }
+                )
+            )
+            BetAmountField(
+                label: "Low-Ball",
+                emoji: "⛳️",
+                amount: Binding(
+                    get: { Double(viewModel.lowBallAmount) ?? 0 },
+                    set: { viewModel.lowBallAmount = String($0) }
+                )
+            )
+            BetAmountField(
+                label: "Birdies",
+                emoji: "🐦",
+                amount: Binding(
+                    get: { Double(viewModel.perBirdieAmount) ?? 0 },
+                    set: { viewModel.perBirdieAmount = String($0) }
+                )
             )
         }
     }
-} 
+    
+    private var toolbarContent: some ToolbarContent {
+        Group {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(viewModel.navigationTitle == "Edit Alabama Game" ? "Update" : "Create") {
+                    viewModel.createBet()
+                    dismiss()
+                }
+                .disabled(!viewModel.isValid)
+            }
+        }
+    }
+}
+
+private struct TeamRow: View {
+    let teamIndex: Int
+    let team: [Player]
+    let onSelectPlayers: () -> Void
+    let onChangePlayers: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Team \(teamIndex + 1)")
+                .font(.headline)
+            
+            if team.isEmpty {
+                Button(action: onSelectPlayers) {
+                    Text("Select Players")
+                        .foregroundColor(.blue)
+                }
+            } else {
+                ForEach(team, id: \.id) { player in
+                    Text(player.firstName)
+                        .foregroundColor(.primary)
+                }
+                Button(action: onChangePlayers) {
+                    Text("Change Players")
+                        .foregroundColor(.blue)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+    }
+}

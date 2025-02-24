@@ -16,7 +16,7 @@ struct PlayerBetDetailsView: View {
                     let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)
                     let amount = bet.player1.id == player.id ? winnings : -winnings
                     Text(String(format: "$%.0f", amount))
-                        .foregroundColor(amount >= 0 ? .green : .red)
+                        .foregroundColor(amount >= 0 ? .primaryGreen : .red)
                 }
             }
             
@@ -34,7 +34,7 @@ struct PlayerBetDetailsView: View {
                     let isTeam1 = bet.team1Player1.id == player.id || bet.team1Player2.id == player.id
                     let amount = isTeam1 ? winnings : -winnings
                     Text(String(format: "$%.0f", amount))
-                        .foregroundColor(amount >= 0 ? .green : .red)
+                        .foregroundColor(amount >= 0 ? .primaryGreen : .red)
                 }
             }
         }

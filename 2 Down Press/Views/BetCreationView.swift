@@ -42,7 +42,7 @@ struct BetCreationView: View {
                     }
                 }
                 .padding()
-                .background(Color(red: 0.2, green: 0.5, blue: 0.3))
+                .background(Color.primaryGreen)
                 
                 // Bet Type Grid
                 ScrollView {
@@ -80,12 +80,12 @@ struct BetCreationView: View {
                 .environmentObject(betManager)
         }
         .sheet(isPresented: $showAlabamaSetup) {
-            AlabamaSetupView()
+            AlabamaSetupView(allPlayers: selectedPlayers)
                 .environmentObject(userProfile)
                 .environmentObject(betManager)
         }
         .sheet(isPresented: $showDoDaSetup) {
-            DoDaSetupView()
+            DoDaSetupView(selectedPlayers: selectedPlayers, betManager: betManager)
                 .environmentObject(userProfile)
                 .environmentObject(betManager)
         }

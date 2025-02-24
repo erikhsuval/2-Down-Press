@@ -6,57 +6,16 @@ struct TheSheetView: View {
     
     var body: some View {
         List {
-            if hasNoBets {
-                Text("No active bets")
-                    .foregroundColor(.gray)
-            } else {
-                // Individual Match Bets
-                if !betManager.individualBets.isEmpty {
-                    Section("Individual Matches") {
-                        ForEach(betManager.individualBets) { bet in
-                            Text("\(bet.player1.firstName) vs \(bet.player2.firstName)")
-                        }
-                    }
-                }
-                
-                // Four Ball Match Bets
-                if !betManager.fourBallBets.isEmpty {
-                    Section("Four Ball Matches") {
-                        ForEach(betManager.fourBallBets) { bet in
-                            Text("\(bet.team1Player1.firstName)/\(bet.team1Player2.firstName) vs \(bet.team2Player1.firstName)/\(bet.team2Player2.firstName)")
-                        }
-                    }
-                }
-                
-                // Skins Bets
-                if !betManager.skinsBets.isEmpty {
-                    Section("Skins") {
-                        ForEach(betManager.skinsBets) { bet in
-                            Text("$\(Int(bet.amount)) per player")
-                        }
-                    }
-                }
-                
-                // Do-Da Bets
-                if !betManager.doDaBets.isEmpty {
-                    Section("Do-Da's") {
-                        ForEach(betManager.doDaBets) { bet in
-                            if bet.isPool {
-                                Text("Pool: $\(Int(bet.amount)) per player")
-                            } else {
-                                Text("$\(Int(bet.amount)) per Do-Da")
-                            }
-                        }
-                    }
-                }
-                
-                // Alabama Bets
-                if !betManager.alabamaBets.isEmpty {
-                    Section("Alabama") {
-                        ForEach(betManager.alabamaBets) { bet in
-                            Text("$\(Int(bet.amount)) per point")
-                        }
-                    }
+            Group {
+                if hasNoBets {
+                    Text("No active bets")
+                        .foregroundColor(.gray)
+                } else {
+                    IndividualMatchesSection(bets: betManager.individualBets)
+                    FourBallMatchesSection(bets: betManager.fourBallBets)
+                    SkinsSection(bets: betManager.skinsBets)
+                    DoDaSection(bets: betManager.doDaBets)
+                    AlabamaSection(bets: betManager.alabamaBets)
                 }
             }
         }
@@ -69,5 +28,79 @@ struct TheSheetView: View {
         betManager.alabamaBets.isEmpty &&
         betManager.doDaBets.isEmpty &&
         betManager.skinsBets.isEmpty
+    }
+}
+
+private struct IndividualMatchesSection: View {
+    let bets: [IndividualMatchBet]
+    
+    var body: some View {
+        if !bets.isEmpty {
+            Section("Individual Matches") {
+                ForEach(bets) { bet in
+                    Text("\(bet.player1.firstName) vs \(bet.player2.firstName)")
+                }
+            }
+        }
+    }
+}
+
+private struct FourBallMatchesSection: View {
+    let bets: [FourBallMatchBet]
+    
+    var body: some View {
+        if !bets.isEmpty {
+            Section("Four Ball Matches") {
+                ForEach(bets) { bet in
+                    Text("\(bet.team1Player1.firstName)/\(bet.team1Player2.firstName) vs \(bet.team2Player1.firstName)/\(bet.team2Player2.firstName)")
+                }
+            }
+        }
+    }
+}
+
+private struct SkinsSection: View {
+    let bets: [SkinsBet]
+    
+    var body: some View {
+        if !bets.isEmpty {
+            Section("Skins") {
+                ForEach(bets) { bet in
+                    Text("$\(Int(bet.amount)) per player")
+                }
+            }
+        }
+    }
+}
+
+private struct DoDaSection: View {
+    let bets: [DoDaBet]
+    
+    var body: some View {
+        if !bets.isEmpty {
+            Section("Do-Da's") {
+                ForEach(bets) { bet in
+                    if bet.isPool {
+                        Text("Pool: $\(Int(bet.amount)) per player")
+                    } else {
+                        Text("$\(Int(bet.amount)) per Do-Da")
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct AlabamaSection: View {
+    let bets: [AlabamaBet]
+    
+    var body: some View {
+        if !bets.isEmpty {
+            Section("Alabama") {
+                ForEach(bets) { bet in
+                    Text("$\(Int(bet.frontNineAmount)) per point")
+                }
+            }
+        }
     }
 } 

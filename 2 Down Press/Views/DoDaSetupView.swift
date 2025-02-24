@@ -1,14 +1,17 @@
 import SwiftUI
+import BetComponents
 
 class DoDaSetupViewModel: ObservableObject {
     @Published var isPool = false
     @Published var amount = ""
     private let editingBet: DoDaBet?
     private var betManager: BetManager
+    private let selectedPlayers: [Player]
     
-    init(editingBet: DoDaBet? = nil, betManager: BetManager) {
+    init(editingBet: DoDaBet? = nil, betManager: BetManager, selectedPlayers: [Player]) {
         self.editingBet = editingBet
         self.betManager = betManager
+        self.selectedPlayers = selectedPlayers
         
         if let bet = editingBet {
             self.isPool = bet.isPool
@@ -31,13 +34,10 @@ class DoDaSetupViewModel: ObservableObject {
             betManager.deleteDoDaBet(existingBet)
         }
         
-        // Get all players from the round
-        var players = MockData.allPlayers
-        
         betManager.addDoDaBet(
             isPool: isPool,
             amount: amountValue,
-            players: players
+            players: selectedPlayers
         )
     }
     
@@ -47,13 +47,14 @@ class DoDaSetupViewModel: ObservableObject {
 }
 
 struct DoDaSetupView: View {
+    @StateObject private var viewModel: DoDaSetupViewModel
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var betManager: BetManager
-    @EnvironmentObject private var userProfile: UserProfile
-    @StateObject private var viewModel: DoDaSetupViewModel
+    let selectedPlayers: [Player]
     
-    init(editingBet: DoDaBet? = nil) {
-        _viewModel = StateObject(wrappedValue: DoDaSetupViewModel(editingBet: editingBet, betManager: BetManager()))
+    init(editingBet: DoDaBet? = nil, selectedPlayers: [Player], betManager: BetManager) {
+        _viewModel = StateObject(wrappedValue: DoDaSetupViewModel(editingBet: editingBet, betManager: betManager, selectedPlayers: selectedPlayers))
+        self.selectedPlayers = selectedPlayers
     }
     
     var body: some View {
@@ -64,32 +65,11 @@ struct DoDaSetupView: View {
                         Text("Per Do-Da").tag(false)
                         Text("Pool").tag(true)
                     }
-                    .pickerStyle(.segmented)
                 }
                 
                 Section(header: Text("Amount")) {
-                    BetAmountField(
-                        label: viewModel.isPool ? "Pool Entry" : "Per Do-Da",
-                        emoji: "✌️",
-                        amount: Binding(
-                            get: { Double(viewModel.amount) ?? 0 },
-                            set: { viewModel.amount = String($0) }
-                        )
-                    )
-                }
-                
-                if viewModel.isPool {
-                    Section {
-                        Text("Each player puts in the pool amount. The total pool is divided by the number of Do-Da's made and paid out per Do-Da.")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                    }
-                } else {
-                    Section {
-                        Text("Each player pays the amount per Do-Da made by any player. Players who make Do-Da's get paid by everyone else.")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                    }
+                    TextField("Amount", text: $viewModel.amount)
+                        .keyboardType(.decimalPad)
                 }
             }
             .navigationTitle(viewModel.navigationTitle)
@@ -101,7 +81,7 @@ struct DoDaSetupView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(viewModel.navigationTitle == "Edit Do-Da's" ? "Update" : "Create") {
+                    Button("Create") {
                         viewModel.createBet()
                         dismiss()
                     }
@@ -113,4 +93,5 @@ struct DoDaSetupView: View {
             viewModel.updateBetManager(betManager)
         }
     }
-} 
+}
+

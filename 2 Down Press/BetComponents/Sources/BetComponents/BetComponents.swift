@@ -3,6 +3,12 @@
 
 import SwiftUI
 
+public extension Color {
+    static public let primaryGreen = Color("PrimaryGreen")
+    static public let secondaryGold = Color("SecondaryGold")
+    static public let backgroundGray = Color(red: 0.95, green: 0.95, blue: 0.95)
+}
+
 // MARK: - TeamPlayerSelection Enum
 public enum TeamPlayerSelection {
     case team1Player1
@@ -96,7 +102,7 @@ public struct BetTypeCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 Image(systemName: imageName)
                     .font(.title)
-                    .foregroundColor(.green) // Using system green since we can't access .primaryGreen
+                    .foregroundColor(.primaryGreen)
                 
                 Text(title)
                     .font(.headline)
