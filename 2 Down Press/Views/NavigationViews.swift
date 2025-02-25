@@ -9,48 +9,61 @@ struct ScorecardNavigationTabs: View {
     
     var body: some View {
         HStack(spacing: 0) {
-            Button {
-                withAnimation {
-                    showLeaderboard.toggle()
-                }
-            } label: {
-                Text("Round")
-                    .foregroundColor(.white)
-                    .frame(width: 80)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white.opacity(0.2))
-                    )
-            }
+            NavigationButton(
+                title: "Leaderboard",
+                icon: "list.bullet",
+                action: { showLeaderboard = true },
+                backgroundColor: Color.deepNavyBlue
+            )
             
-            Spacer()
-            
-            if !selectedGroupPlayers.isEmpty {
-                Text(selectedGroupPlayers[currentPlayerIndex % selectedGroupPlayers.count].firstName)
-                    .font(.headline)
-                    .foregroundColor(.white)
-            }
-            
-            Spacer()
-            
-            Button {
-                withAnimation {
-                    showBetCreation.toggle()
-                }
-            } label: {
-                Text("Bets")
-                    .foregroundColor(.white)
-                    .frame(width: 80)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white.opacity(0.2))
-                    )
-            }
+            NavigationButton(
+                title: "Bets",
+                icon: "dollarsign.circle",
+                action: { showBetCreation = true },
+                backgroundColor: Color.primaryGreen
+            )
         }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
-        .background(Color.primaryGreen)
+        .background(Color.white)
+        .shadow(color: .black.opacity(0.1), radius: 5, y: 2)
+    }
+}
+
+struct NavigationButton: View {
+    let title: String
+    let icon: String
+    let action: () -> Void
+    let backgroundColor: Color
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                Text(title)
+                    .font(.custom("Avenir-Heavy", size: 18))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(
+                backgroundColor
+                    .overlay(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.white.opacity(0.2), .clear]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            )
+        }
+        .buttonStyle(ScaleButtonStyle())
+    }
+}
+
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1)
+            .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
     }
 } 

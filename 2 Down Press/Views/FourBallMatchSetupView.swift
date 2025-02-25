@@ -168,24 +168,44 @@ struct FourBallMatchSetupView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Per Hole")
                                 .font(.headline)
-                            QuickAmountSelector(amount: Binding(
-                                get: { Double(viewModel.perHoleAmount) ?? 0 },
-                                set: { newValue in
-                                    viewModel.perHoleAmount = String(format: "%.0f", newValue)
-                                }
-                            ))
+                            HStack {
+                                Text("$")
+                                    .font(.headline)
+                                    .foregroundColor(.primaryGreen)
+                                TextField("Amount", text: $viewModel.perHoleAmount)
+                                    .keyboardType(.decimalPad)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.primaryGreen.opacity(0.5), lineWidth: 1)
+                            )
                         }
                         
                         // Per Birdie Amount
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Per Birdie")
                                 .font(.headline)
-                            QuickAmountSelector(amount: Binding(
-                                get: { Double(viewModel.perBirdieAmount) ?? 0 },
-                                set: { newValue in
-                                    viewModel.perBirdieAmount = String(format: "%.0f", newValue)
-                                }
-                            ))
+                            HStack {
+                                Text("$")
+                                    .font(.headline)
+                                    .foregroundColor(.primaryGreen)
+                                TextField("Amount", text: $viewModel.perBirdieAmount)
+                                    .keyboardType(.decimalPad)
+                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.primaryGreen.opacity(0.5), lineWidth: 1)
+                            )
                         }
                         
                         Toggle("Press on 9 & 18", isOn: $viewModel.pressOn9and18)

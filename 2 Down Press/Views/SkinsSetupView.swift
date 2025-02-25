@@ -76,9 +76,9 @@ struct SkinsSetupView: View {
     @StateObject private var viewModel: SkinsSetupViewModel
     let players: [BetComponents.Player]
     
-    init(editingBet: SkinsBet? = nil, players: [BetComponents.Player]) {
+    init(editingBet: SkinsBet? = nil, players: [BetComponents.Player], betManager: BetManager) {
         self.players = players
-        _viewModel = StateObject(wrappedValue: SkinsSetupViewModel(editingBet: editingBet, players: players, betManager: BetManager()))
+        _viewModel = StateObject(wrappedValue: SkinsSetupViewModel(editingBet: editingBet, players: players, betManager: betManager))
     }
     
     var body: some View {

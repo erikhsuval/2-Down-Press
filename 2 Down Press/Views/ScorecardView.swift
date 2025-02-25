@@ -102,6 +102,8 @@ struct ScorecardView: View {
                 toggleTimer: toggleTimer
             )
         }
+        .navigationBarBackButtonHidden(true)
+        .navigationBarHidden(true)
         .sheet(isPresented: $showPlayerSelection) {
             PlayerSelectionView(selectedPlayers: $selectedPlayers)
                 .onDisappear {
@@ -176,41 +178,18 @@ struct ScorecardView: View {
     }
     
     private func populateTestScores() {
-        let contentView = ScorecardContentView(
-            players: players,
-            selectedPlayerIndex: $selectedPlayerIndex,
-            scores: $scores,
-            teeBox: teeBox,
-            dragOffset: _dragOffset,
-            updateScore: updateScore
-        )
-        
-        for player in contentView.orderedPlayers {
+        for player in players {
             if let testScores = TestScoreData.scores[player.firstName] {
                 scores[player.id] = testScores
             }
         }
-    }
-    
-    private func getTeamColor(for player: BetComponents.Player) -> Color? {
-        if let alabamaBet = betManager.alabamaBets.first(where: { bet in
-            bet.teams.contains(where: { team in
-                team.contains(where: { $0.id == player.id })
-            })
-        }) {
-            for (index, team) in alabamaBet.teams.enumerated() {
-                if team.contains(where: { $0.id == player.id }) {
-                    return teamColors[index]
-                }
-            }
-        }
-        return nil
+        selectedPlayerIndex = 0  // Reset to first player
     }
     
     private let teamColors: [Color] = [
         Color(red: 0.91, green: 0.3, blue: 0.24),   // Vibrant Red
         Color(red: 0.0, green: 0.48, blue: 0.8),    // Ocean Blue
-        Color(red: 0.13, green: 0.55, blue: 0.13),  // Forest Green
+        Color.teamGold,                              // Team Gold
         Color(red: 0.6, green: 0.2, blue: 0.8)      // Royal Purple
     ]
 }
@@ -226,16 +205,25 @@ struct ScorecardHeaderView: View {
         VStack(spacing: 0) {
             HStack {
                 Button(action: { showMenu = true }) {
-                    Image(systemName: "line.3.horizontal")
+                    Image(systemName: "line.horizontal.3")
                         .font(.title2)
                         .foregroundColor(.white)
+                        .padding(8)
+                        .background(Color.black.opacity(0.2))
+                        .clipShape(Circle())
                 }
                 
                 Spacer()
                 
-                Text(course.name)
-                    .font(.title3.bold())
-                    .foregroundColor(.white)
+                VStack(spacing: 4) {
+                    Text(course.name)
+                        .font(.custom("Avenir-Black", size: 24))
+                        .foregroundColor(.white)
+                    
+                    Text("Playing from: Black/Blue")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                }
                 
                 Spacer()
                 
@@ -244,7 +232,7 @@ struct ScorecardHeaderView: View {
                         .font(.title2)
                         .foregroundColor(.white)
                         .padding(8)
-                        .background(Color.white.opacity(0.2))
+                        .background(Color.black.opacity(0.2))
                         .clipShape(Circle())
                 }
             }
@@ -258,18 +246,18 @@ struct ScorecardHeaderView: View {
             )
             
             if showTestScoresButton {
-                HStack {
-                    Spacer()
-                    Button(action: populateTestScores) {
+                Button(action: populateTestScores) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 14, weight: .semibold))
                         Text("Load Test Scores")
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.blue.opacity(0.8))
-                            .cornerRadius(8)
+                            .font(.system(size: 14, weight: .semibold))
                     }
-                    Spacer()
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.blue.opacity(0.8))
+                    .clipShape(Capsule())
                 }
                 .padding(.vertical, 8)
                 .background(Color.primaryGreen.opacity(0.9))
@@ -436,7 +424,7 @@ struct ScorecardContentView: View {
     private let teamColors: [Color] = [
         Color(red: 0.91, green: 0.3, blue: 0.24),   // Vibrant Red
         Color(red: 0.0, green: 0.48, blue: 0.8),    // Ocean Blue
-        Color(red: 0.13, green: 0.55, blue: 0.13),  // Forest Green
+        Color.teamGold,                              // Team Gold
         Color(red: 0.6, green: 0.2, blue: 0.8)      // Royal Purple
     ]
 }
@@ -448,20 +436,32 @@ struct ScorecardTimerView: View {
     
     var body: some View {
         HStack {
-            Text(formattedTime)
-                .font(.title2.monospacedDigit())
-                .foregroundColor(.white)
+            HStack(spacing: 12) {
+                Image(systemName: "clock")
+                    .font(.system(size: 18, weight: .semibold))
+                Text(formattedTime)
+                    .font(.system(size: 24, weight: .bold, design: .monospaced))
+            }
+            .foregroundColor(.white)
             
             Spacer()
             
             Button(action: toggleTimer) {
                 Image(systemName: isTimerRunning ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.title)
+                    .font(.system(size: 28))
                     .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
             }
         }
         .padding()
-        .background(Color.primaryGreen)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.primaryGreen, Color.deepNavyBlue]),
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
+        .shadow(color: .black.opacity(0.1), radius: 5, y: 2)
     }
 }
 
@@ -691,7 +691,7 @@ struct ScoreDecorationModifier: ViewModifier {
     }
     
     private func colorForScore(_ score: Int) -> Color {
-        if score == 1 || score < par - 1 { return .secondaryGold }
+        if score == 1 || score < par - 1 { return .teamGold }
         if score == par - 1 { return .red }
         if score == par { return .primaryGreen }
         return .blue
@@ -746,7 +746,7 @@ struct ScorecardGridView: View {
                 .padding(.vertical, 8)
                 .background(
                     LinearGradient(
-                        gradient: Gradient(colors: [Color.secondaryGold.opacity(0.95), Color.secondaryGold]),
+                        gradient: Gradient(colors: [Color.deepNavyBlue.opacity(0.95), Color.deepNavyBlue]),
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -796,7 +796,7 @@ struct ScorecardGridView: View {
                 .padding(.vertical, 8)
                 .background(
                     LinearGradient(
-                        gradient: Gradient(colors: [Color.secondaryGold.opacity(0.7), Color.secondaryGold.opacity(0.8)]),
+                        gradient: Gradient(colors: [Color.deepNavyBlue.opacity(0.7), Color.deepNavyBlue.opacity(0.8)]),
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -879,7 +879,7 @@ struct ScorecarTotalsView: View {
         .padding()
         .background(
             LinearGradient(
-                gradient: Gradient(colors: [Color.primaryGreen, Color.secondaryGold]),
+                gradient: Gradient(colors: [Color.primaryGreen, Color.deepNavyBlue]),
                 startPoint: .leading,
                 endPoint: .trailing
             )
@@ -981,6 +981,7 @@ struct PlayerSelectionRow: View {
             VStack(alignment: .leading) {
                 Text(player.firstName + " " + player.lastName)
                     .font(.headline)
+                    .foregroundColor(.teamGold)
             }
             Spacer()
         }
@@ -988,7 +989,7 @@ struct PlayerSelectionRow: View {
         .padding(.horizontal, 16)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isSelected ? Color.primaryGreen : Color.gray.opacity(0.3), lineWidth: 2)
+                .stroke(isSelected ? Color.teamGold : Color.gray.opacity(0.3), lineWidth: 2)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(isSelected ? Color.primaryGreen.opacity(0.1) : Color.white)
@@ -1008,10 +1009,10 @@ struct LeaderboardView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var betManager: BetManager
     @State private var isPosted = false
+    @State private var showMenu = false
     @State private var showPostConfirmation = false
     @State private var showUnpostConfirmation = false
     @State private var showPostAnimation = false
-    @State private var showMenu = false
     @State private var expandedPlayers: Set<UUID> = []
     
     var body: some View {
@@ -1028,8 +1029,9 @@ struct LeaderboardView: View {
                     Spacer()
                     
                     Text("Leaderboard")
-                        .font(.title2.bold())
+                        .font(.custom("Avenir-Black", size: 28))
                         .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 2)
                     
                     Spacer()
                     
@@ -1108,16 +1110,34 @@ struct LeaderboardView: View {
                 
                 // Stats row
                 HStack {
-                    Text("FWY -")
-                    Text("Putts 12")
-                    Text("Penalty -")
-                    Text("GIR 100%")
+                    let bigWinner = Array(players.enumerated())
+                        .map { (index, player) in
+                            let viewModel = PlayerStatsViewModel(
+                                player: player,
+                                index: index,
+                                playerScores: playerScores,
+                                teeBox: teeBox,
+                                betManager: betManager
+                            )
+                            return (player, viewModel.winnings)
+                        }
+                        .max(by: { $0.1 < $1.1 })
+                    
+                    if let winner = bigWinner {
+                        Text("Current Big Winner: ")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Text(winner.0.firstName)
+                            .font(.headline)
+                            .foregroundColor(.teamGold)
+                        Text(String(format: " ($%.0f)", winner.1))
+                            .font(.headline)
+                            .foregroundColor(.teamGold)
+                    }
                 }
-                .font(.footnote)
                 .padding()
                 .frame(maxWidth: .infinity)
                 .background(Color.primaryGreen)
-                .foregroundColor(.white)
                 
                 // Post/Unpost Buttons
                 HStack(spacing: 20) {
@@ -1329,7 +1349,7 @@ struct PlayerRowView: View {
                         .frame(width: 60)
                     Spacer()
                     Text(String(format: "$%.0f", winnings))
-                        .foregroundColor(winnings >= 0 ? .green : .red)
+                        .foregroundColor(winnings >= 0 ? .primaryGreen : .red)
                         .frame(width: 70)
                     Spacer()
                     Text("\(skins)")
@@ -1340,7 +1360,7 @@ struct PlayerRowView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 12)
-                .background(index % 2 == 0 ? Color.white : Color.green.opacity(0.1))
+                .background(index % 2 == 0 ? Color.white : Color.primaryGreen.opacity(0.1))
             }
             .foregroundColor(.primary)
             
@@ -1525,28 +1545,37 @@ struct PlayerButton: View {
     let teamColor: Color?
     
     var body: some View {
-        Text(player.firstName)
-            .font(.system(size: 16, weight: .semibold))
-            .foregroundColor(isSelected ? .white : teamColor ?? .primary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(
-                        teamColor?.opacity(isSelected ? 0.9 : 0.15) ?? 
-                        Color.primaryGreen.opacity(isSelected ? 0.9 : 0.15)
+        VStack(spacing: 4) {
+            // Player Avatar
+            ZStack {
+                Circle()
+                    .fill(isSelected ? Color.primaryGreen : Color.gray.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                    .overlay(
+                        Circle()
+                            .stroke(teamColor ?? .clear, lineWidth: 2)
                     )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(teamColor ?? Color.primaryGreen, lineWidth: 1.5)
-            )
-            .shadow(
-                color: (teamColor ?? Color.primaryGreen).opacity(0.3),
-                radius: isSelected ? 4 : 2,
-                x: 0,
-                y: isSelected ? 2 : 1
-            )
+                
+                Text(String(player.firstName.prefix(1)))
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(isSelected ? .white : .gray)
+            }
+            
+            // Player Name
+            Text(player.firstName)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.teamGold)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isSelected ? Color.teamGold : Color.gray.opacity(0.3), lineWidth: 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isSelected ? Color.primaryGreen.opacity(0.1) : Color.white)
+                )
+        )
     }
-} 
+}
 

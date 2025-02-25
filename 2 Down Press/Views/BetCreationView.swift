@@ -139,14 +139,18 @@ struct BetCreationView: View {
                 .environmentObject(userProfile)
         }
         .sheet(isPresented: $showFourBallMatchSetup) {
-            FourBallMatchSetupView(selectedPlayers: availablePlayers, betManager: betManager)
-                .environmentObject(userProfile)
-                .environmentObject(betManager)
+            NavigationView {
+                FourBallMatchSetupView(selectedPlayers: availablePlayers, betManager: betManager)
+                    .environmentObject(userProfile)
+                    .environmentObject(betManager)
+            }
         }
         .sheet(isPresented: $showAlabamaSetup) {
-            AlabamaSetupView(allPlayers: availablePlayers)
-                .environmentObject(userProfile)
-                .environmentObject(betManager)
+            NavigationView {
+                AlabamaSetupView(allPlayers: availablePlayers, betManager: betManager)
+                    .environmentObject(userProfile)
+                    .environmentObject(betManager)
+            }
         }
         .sheet(isPresented: $showDoDaSetup) {
             DoDaSetupView(selectedPlayers: availablePlayers, betManager: betManager)
@@ -155,7 +159,7 @@ struct BetCreationView: View {
         }
         .sheet(isPresented: $showSkinsSetup) {
             NavigationView {
-                SkinsSetupView(players: availablePlayers)
+                SkinsSetupView(players: availablePlayers, betManager: betManager)
                     .environmentObject(userProfile)
                     .environmentObject(betManager)
             }

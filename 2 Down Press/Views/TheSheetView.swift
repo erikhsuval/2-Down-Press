@@ -31,53 +31,56 @@ struct TheSheetView: View {
             // Header with balance
             HStack {
                 Text("The Sheet")
-                    .font(.title2.bold())
+                    .font(.custom("Avenir-Heavy", size: 34))
                     .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 2)
                 
                 Spacer()
                 
                 // Balance indicator
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .center, spacing: 8) {
                     Text("BALANCE")
-                        .font(.caption.bold())
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white.opacity(0.8))
                     
-                    HStack(spacing: 12) {
+                    HStack(spacing: 20) {
                         // Winnings
-                        VStack(alignment: .trailing, spacing: 0) {
+                        VStack(alignment: .trailing, spacing: 2) {
                             Text("WIN")
-                                .font(.system(size: 10, weight: .bold))
+                                .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(.white.opacity(0.8))
                             Text(String(format: "$%.0f", totalWinningsAndLosses.winnings))
-                                .font(.system(size: 14, weight: .bold, design: .monospaced))
-                                .foregroundColor(.green)
+                                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                                .foregroundColor(.primaryGreen)
                         }
+                        .frame(width: 100)
                         
                         // Divider
                         Rectangle()
-                            .frame(width: 1, height: 24)
+                            .frame(width: 2, height: 40)
                             .foregroundColor(.white.opacity(0.3))
                         
                         // Losses
-                        VStack(alignment: .trailing, spacing: 0) {
+                        VStack(alignment: .trailing, spacing: 2) {
                             Text("LOSS")
-                                .font(.system(size: 10, weight: .bold))
+                                .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(.white.opacity(0.8))
                             Text(String(format: "$%.0f", totalWinningsAndLosses.losses))
-                                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                .font(.system(size: 20, weight: .bold, design: .monospaced))
                                 .foregroundColor(.red)
                         }
+                        .frame(width: 100)
                     }
                     
                     // Show imbalance if any
                     if abs(totalBalance) > 0.01 {
                         Text("Imbalance: \(String(format: "$%.2f", abs(totalBalance)))")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.red)
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.black.opacity(0.2))
@@ -87,15 +90,17 @@ struct TheSheetView: View {
                                     abs(totalBalance) < 0.01 ? 
                                     Color.green.opacity(0.5) : 
                                     Color.red.opacity(0.5),
-                                    lineWidth: 1
+                                    lineWidth: 1.5
                                 )
                         )
                 )
+                .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
+                .frame(minWidth: 280)
             }
             .padding()
             .background(
                 LinearGradient(
-                    gradient: Gradient(colors: [Color.primaryGreen, Color.primaryGreen.opacity(0.9)]),
+                    gradient: Gradient(colors: [Color.primaryGreen, Color.primaryGreen.opacity(0.95)]),
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -116,6 +121,32 @@ struct TheSheetView: View {
                 SheetDetailsView()
             }
         }
+    }
+}
+
+// New component for balance cards
+struct BalanceCard: View {
+    let title: String
+    let amount: Double
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.white.opacity(0.9))
+            
+            Text(String(format: "$%.0f", amount))
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 15)
+                .fill(Color.white.opacity(0.15))
+                .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
+        )
     }
 }
 

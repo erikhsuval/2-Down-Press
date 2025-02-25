@@ -91,13 +91,13 @@ struct AlabamaSetupView: View {
     private let teamColors: [Color] = [
         Color(red: 0.91, green: 0.3, blue: 0.24),   // Vibrant Red
         Color(red: 0.0, green: 0.48, blue: 0.8),    // Ocean Blue
-        Color(red: 0.13, green: 0.55, blue: 0.13),  // Forest Green
+        Color.teamGold,                              // Team Gold
         Color(red: 0.6, green: 0.2, blue: 0.8)      // Royal Purple
     ]
     
-    public init(editingBet: AlabamaBet? = nil, allPlayers: [BetComponents.Player]) {
+    public init(editingBet: AlabamaBet? = nil, allPlayers: [BetComponents.Player], betManager: BetManager) {
         self.allPlayers = allPlayers
-        self._viewModel = StateObject(wrappedValue: AlabamaSetupViewModel(editingBet: editingBet, betManager: BetManager()))
+        self._viewModel = StateObject(wrappedValue: AlabamaSetupViewModel(editingBet: editingBet, betManager: betManager))
     }
     
     private var excludedPlayers: [BetComponents.Player] {
@@ -272,7 +272,7 @@ private struct TeamRow: View {
     private let teamColors: [Color] = [
         Color(red: 0.91, green: 0.3, blue: 0.24),   // Vibrant Red
         Color(red: 0.0, green: 0.48, blue: 0.8),    // Ocean Blue
-        Color(red: 0.13, green: 0.55, blue: 0.13),  // Forest Green
+        Color.teamGold,                              // Team Gold
         Color(red: 0.6, green: 0.2, blue: 0.8)      // Royal Purple
     ]
     
