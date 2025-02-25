@@ -7,17 +7,14 @@ struct BetPlayerSelectionView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userProfile: UserProfile
     
-    var allPlayers: [BetComponents.Player] {
-        var playerList = players
-        if let currentUser = userProfile.currentUser {
-            playerList.insert(currentUser, at: 0)
-        }
-        return playerList
+    var displayPlayers: [BetComponents.Player] {
+        // Show all available players from the scorecard
+        players
     }
     
     var body: some View {
         NavigationView {
-            List(allPlayers) { player in
+            List(displayPlayers) { player in
                 Button(action: {
                     selectedPlayer = player
                     dismiss()
@@ -33,7 +30,9 @@ struct BetPlayerSelectionView: View {
                 }
             }
             .navigationTitle("Select Players")
-            .navigationBarItems(trailing: Button("Cancel") { dismiss() })
+            .navigationBarItems(
+                leading: Button("Cancel") { dismiss() }
+            )
         }
     }
 } 

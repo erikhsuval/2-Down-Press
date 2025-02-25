@@ -5,7 +5,6 @@ struct BetCreationView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userProfile: UserProfile
     @EnvironmentObject var betManager: BetManager
-    let selectedPlayers: [BetComponents.Player]
     @State private var selectedBetType: BetType?
     @State private var showAnimation = false
     @State private var animationOffset: CGFloat = 0
@@ -15,6 +14,49 @@ struct BetCreationView: View {
     @State private var showDoDaSetup = false
     @State private var showSkinsSetup = false
     @State private var showMenu = false
+    
+    // Use all available players instead of just selected ones
+    private var availablePlayers: [BetComponents.Player] {
+        // Get all players in current bets
+        var playersInBets = Set<UUID>()
+        
+        betManager.individualBets.forEach { bet in
+            playersInBets.insert(bet.player1.id)
+            playersInBets.insert(bet.player2.id)
+        }
+        
+        betManager.fourBallBets.forEach { bet in
+            playersInBets.insert(bet.team1Player1.id)
+            playersInBets.insert(bet.team1Player2.id)
+            playersInBets.insert(bet.team2Player1.id)
+            playersInBets.insert(bet.team2Player2.id)
+        }
+        
+        betManager.alabamaBets.forEach { bet in
+            bet.teams.forEach { team in
+                team.forEach { player in
+                    playersInBets.insert(player.id)
+                }
+            }
+        }
+        
+        betManager.doDaBets.forEach { bet in
+            bet.players.forEach { player in
+                playersInBets.insert(player.id)
+            }
+        }
+        
+        betManager.skinsBets.forEach { bet in
+            bet.players.forEach { player in
+                playersInBets.insert(player.id)
+            }
+        }
+        
+        // Filter out players already in bets
+        return MockData.allPlayers.filter { player in
+            !playersInBets.contains(player.id)
+        }
+    }
     
     var body: some View {
         NavigationView {
@@ -48,19 +90,10 @@ struct BetCreationView: View {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                         ForEach(BetType.allCases) { betType in
-                            let systemImage = switch betType {
-                            case .individualMatch: "person.2"
-                            case .fourBallMatch: "person.3"
-                            case .alabama: "person.3.sequence"
-                            case .doDas: "2.circle"
-                            case .skins: "dollarsign.circle"
-                            case .wolf: "person.2.circle"
-                            }
-                            
                             BetTypeCard(
                                 title: betType.rawValue,
                                 description: betType.description,
-                                imageName: systemImage,
+                                imageName: betType.emoji,
                                 action: { handleBetSelection(betType) }
                             )
                         }
@@ -70,27 +103,27 @@ struct BetCreationView: View {
             }
         }
         .sheet(isPresented: $showIndividualMatchSetup) {
-            IndividualMatchSetupView(selectedPlayers: selectedPlayers, betManager: betManager)
+            IndividualMatchSetupView(selectedPlayers: availablePlayers, betManager: betManager)
                 .environmentObject(userProfile)
         }
         .sheet(isPresented: $showFourBallMatchSetup) {
-            FourBallMatchSetupView(selectedPlayers: selectedPlayers)
+            FourBallMatchSetupView(selectedPlayers: availablePlayers)
                 .environmentObject(userProfile)
                 .environmentObject(betManager)
         }
         .sheet(isPresented: $showAlabamaSetup) {
-            AlabamaSetupView(allPlayers: selectedPlayers)
+            AlabamaSetupView(allPlayers: availablePlayers)
                 .environmentObject(userProfile)
                 .environmentObject(betManager)
         }
         .sheet(isPresented: $showDoDaSetup) {
-            DoDaSetupView(selectedPlayers: selectedPlayers, betManager: betManager)
+            DoDaSetupView(selectedPlayers: availablePlayers, betManager: betManager)
                 .environmentObject(userProfile)
                 .environmentObject(betManager)
         }
         .sheet(isPresented: $showSkinsSetup) {
             NavigationView {
-                SkinsSetupView(players: selectedPlayers)
+                SkinsSetupView(players: availablePlayers)
                     .environmentObject(userProfile)
                     .environmentObject(betManager)
             }

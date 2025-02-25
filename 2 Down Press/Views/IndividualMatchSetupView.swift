@@ -85,81 +85,93 @@ struct IndividualMatchSetupView: View {
     }
     
     var body: some View {
-        Form {
-            Section(header: Text("PLAYERS")) {
-                Button(action: {
-                    selectingForFirstPlayer = true
-                    showPlayerSelection = true
-                }) {
-                    PlayerSelectionButton(
-                        title: "Player 1",
-                        playerName: viewModel.selectedPlayer1?.firstName ?? "Select Player"
-                    )
+        NavigationView {
+            Form {
+                Section(header: Text("PLAYERS")) {
+                    Button(action: {
+                        selectingForFirstPlayer = true
+                        showPlayerSelection = true
+                    }) {
+                        PlayerSelectionButton(
+                            title: "Player 1",
+                            playerName: viewModel.selectedPlayer1?.firstName ?? "Select Player",
+                            icon: "person.fill"
+                        )
+                    }
+                    
+                    Button(action: {
+                        selectingForFirstPlayer = false
+                        showPlayerSelection = true
+                    }) {
+                        PlayerSelectionButton(
+                            title: "Player 2",
+                            playerName: viewModel.selectedPlayer2?.firstName ?? "Select Player",
+                            icon: "person.fill"
+                        )
+                    }
                 }
                 
-                Button(action: {
-                    selectingForFirstPlayer = false
-                    showPlayerSelection = true
-                }) {
-                    PlayerSelectionButton(
-                        title: "Player 2",
-                        playerName: viewModel.selectedPlayer2?.firstName ?? "Select Player"
-                    )
+                Section(header: Text("BET DETAILS")) {
+                    VStack(spacing: 16) {
+                        BetAmountField(
+                            label: "Per Hole",
+                            emoji: "⛳️",
+                            amount: Binding(
+                                get: { viewModel.perHoleAmount },
+                                set: { viewModel.perHoleAmount = $0 }
+                            )
+                        )
+                        
+                        BetAmountField(
+                            label: "Per Birdie",
+                            emoji: "🐦",
+                            amount: Binding(
+                                get: { viewModel.perBirdieAmount },
+                                set: { viewModel.perBirdieAmount = $0 }
+                            )
+                        )
+                        
+                        Toggle("Press on 9 & 18", isOn: $viewModel.pressOn9and18)
+                    }
+                    .padding(.vertical, 8)
                 }
             }
-            
-            Section(header: Text("AMOUNTS")) {
-                HStack {
-                    Text("Per Hole")
-                    Spacer()
-                    TextField("Amount", value: $viewModel.perHoleAmount, format: .number)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
+            .navigationTitle(viewModel.navigationTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
                 }
-                
-                HStack {
-                    Text("Per Birdie")
-                    Spacer()
-                    TextField("Amount", value: $viewModel.perBirdieAmount, format: .number)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(viewModel.navigationTitle == "Edit Individual Match" ? "Update" : "Create") {
+                        viewModel.createBet()
+                        dismiss()
+                    }
+                    .disabled(!viewModel.isValid)
                 }
-            }
-            
-            Section {
-                Toggle("Press on 9 & 18", isOn: $viewModel.pressOn9and18)
-            }
-        }
-        .navigationTitle(viewModel.navigationTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Cancel") {
-                    dismiss()
-                }
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(editingBet != nil ? "Update" : "Create") {
-                    viewModel.createBet()
-                    dismiss()
-                }
-                .disabled(!viewModel.isValid)
             }
         }
         .sheet(isPresented: $showPlayerSelection) {
-            MultiPlayerSelectionView(
-                selectedPlayers: selectingForFirstPlayer ? 
-                    Binding(
-                        get: { viewModel.selectedPlayer1.map { [$0] } ?? [] },
-                        set: { players in viewModel.selectedPlayer1 = players.first }
-                    ) :
-                    Binding(
-                        get: { viewModel.selectedPlayer2.map { [$0] } ?? [] },
-                        set: { players in viewModel.selectedPlayer2 = players.first }
-                    ),
-                requiredCount: 1,
-                onComplete: { _ in },
-                allPlayers: selectedPlayers
+            BetPlayerSelectionView(
+                players: selectedPlayers.filter { player in
+                    if selectingForFirstPlayer {
+                        return player.id != viewModel.selectedPlayer2?.id
+                    } else {
+                        return player.id != viewModel.selectedPlayer1?.id
+                    }
+                },
+                selectedPlayer: Binding(
+                    get: { selectingForFirstPlayer ? viewModel.selectedPlayer1 : viewModel.selectedPlayer2 },
+                    set: { player in
+                        if selectingForFirstPlayer {
+                            viewModel.selectedPlayer1 = player
+                        } else {
+                            viewModel.selectedPlayer2 = player
+                        }
+                    }
+                )
             )
             .environmentObject(userProfile)
         }

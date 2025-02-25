@@ -85,6 +85,30 @@ struct FourBallMatchSetupView: View {
         _viewModel = StateObject(wrappedValue: FourBallMatchSetupViewModel(editingBet: editingBet, betManager: BetManager()))
     }
     
+    private func availablePlayers(for selection: TeamPlayerSelection) -> [BetComponents.Player] {
+        // Filter out players already selected in other positions
+        selectedPlayers.filter { player in
+            switch selection {
+            case .team1Player1:
+                return player.id != viewModel.team1Player2?.id &&
+                       player.id != viewModel.team2Player1?.id &&
+                       player.id != viewModel.team2Player2?.id
+            case .team1Player2:
+                return player.id != viewModel.team1Player1?.id &&
+                       player.id != viewModel.team2Player1?.id &&
+                       player.id != viewModel.team2Player2?.id
+            case .team2Player1:
+                return player.id != viewModel.team1Player1?.id &&
+                       player.id != viewModel.team1Player2?.id &&
+                       player.id != viewModel.team2Player2?.id
+            case .team2Player2:
+                return player.id != viewModel.team1Player1?.id &&
+                       player.id != viewModel.team1Player2?.id &&
+                       player.id != viewModel.team2Player1?.id
+            }
+        }
+    }
+    
     var body: some View {
         NavigationView {
             Form {
@@ -95,7 +119,8 @@ struct FourBallMatchSetupView: View {
                     }) {
                         PlayerSelectionButton(
                             title: "Player 1",
-                            playerName: viewModel.team1Player1?.firstName ?? "Select Player"
+                            playerName: viewModel.team1Player1?.firstName ?? "Select Player",
+                            icon: "person.fill"
                         )
                     }
                     
@@ -105,7 +130,8 @@ struct FourBallMatchSetupView: View {
                     }) {
                         PlayerSelectionButton(
                             title: "Player 2",
-                            playerName: viewModel.team1Player2?.firstName ?? "Select Player"
+                            playerName: viewModel.team1Player2?.firstName ?? "Select Player",
+                            icon: "person.fill"
                         )
                     }
                 }
@@ -117,7 +143,8 @@ struct FourBallMatchSetupView: View {
                     }) {
                         PlayerSelectionButton(
                             title: "Player 1",
-                            playerName: viewModel.team2Player1?.firstName ?? "Select Player"
+                            playerName: viewModel.team2Player1?.firstName ?? "Select Player",
+                            icon: "person.fill"
                         )
                     }
                     
@@ -127,7 +154,8 @@ struct FourBallMatchSetupView: View {
                     }) {
                         PlayerSelectionButton(
                             title: "Player 2",
-                            playerName: viewModel.team2Player2?.firstName ?? "Select Player"
+                            playerName: viewModel.team2Player2?.firstName ?? "Select Player",
+                            icon: "person.fill"
                         )
                     }
                 }
@@ -173,30 +201,30 @@ struct FourBallMatchSetupView: View {
                     .disabled(!viewModel.isValid)
                 }
             }
-            .sheet(isPresented: $showPlayerSelection) {
-                BetPlayerSelectionView(
-                    players: selectedPlayers,
-                    selectedPlayer: Binding(
-                        get: {
-                            switch currentSelection {
-                            case .team1Player1: return viewModel.team1Player1
-                            case .team1Player2: return viewModel.team1Player2
-                            case .team2Player1: return viewModel.team2Player1
-                            case .team2Player2: return viewModel.team2Player2
-                            }
-                        },
-                        set: { newValue in
-                            switch currentSelection {
-                            case .team1Player1: viewModel.team1Player1 = newValue
-                            case .team1Player2: viewModel.team1Player2 = newValue
-                            case .team2Player1: viewModel.team2Player1 = newValue
-                            case .team2Player2: viewModel.team2Player2 = newValue
-                            }
+        }
+        .sheet(isPresented: $showPlayerSelection) {
+            BetPlayerSelectionView(
+                players: availablePlayers(for: currentSelection),
+                selectedPlayer: Binding(
+                    get: {
+                        switch currentSelection {
+                        case .team1Player1: return viewModel.team1Player1
+                        case .team1Player2: return viewModel.team1Player2
+                        case .team2Player1: return viewModel.team2Player1
+                        case .team2Player2: return viewModel.team2Player2
                         }
-                    )
+                    },
+                    set: { newValue in
+                        switch currentSelection {
+                        case .team1Player1: viewModel.team1Player1 = newValue
+                        case .team1Player2: viewModel.team1Player2 = newValue
+                        case .team2Player1: viewModel.team2Player1 = newValue
+                        case .team2Player2: viewModel.team2Player2 = newValue
+                        }
+                    }
                 )
-                .environmentObject(userProfile)
-            }
+            )
+            .environmentObject(userProfile)
         }
         .onAppear {
             viewModel.updateBetManager(betManager)

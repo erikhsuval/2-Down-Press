@@ -81,29 +81,77 @@ struct AlabamaSetupView: View {
     @State private var selectedPlayers: [BetComponents.Player] = []
     let allPlayers: [BetComponents.Player]
     
-    init(editingBet: AlabamaBet? = nil, allPlayers: [BetComponents.Player]) {
+    private let teamColors: [Color] = [
+        Color(red: 0.91, green: 0.3, blue: 0.24),   // Vibrant Red
+        Color(red: 0.0, green: 0.48, blue: 0.8),    // Ocean Blue
+        Color(red: 0.13, green: 0.55, blue: 0.13),  // Forest Green
+        Color(red: 0.6, green: 0.2, blue: 0.8)      // Royal Purple
+    ]
+    
+    public init(editingBet: AlabamaBet? = nil, allPlayers: [BetComponents.Player]) {
         self.allPlayers = allPlayers
-        _viewModel = StateObject(wrappedValue: AlabamaSetupViewModel(editingBet: editingBet, betManager: BetManager()))
+        self._viewModel = StateObject(wrappedValue: AlabamaSetupViewModel(editingBet: editingBet, betManager: BetManager()))
+    }
+    
+    private var excludedPlayers: [BetComponents.Player] {
+        var excluded: [BetComponents.Player] = []
+        for (index, team) in viewModel.teams.enumerated() {
+            if index != currentTeamIndex {
+                excluded.append(contentsOf: team)
+            }
+        }
+        return excluded
     }
     
     var body: some View {
         NavigationView {
             Form {
-                gameSetupSection
+                Section(header: Text("GAME SETUP")) {
+                    Stepper("Number of Teams: \(viewModel.numberOfTeams)", value: $viewModel.numberOfTeams, in: 2...4)
+                        .onChange(of: viewModel.numberOfTeams) { oldValue, newValue in
+                            if viewModel.teams.count < newValue {
+                                viewModel.teams.append([])
+                            } else if viewModel.teams.count > newValue {
+                                viewModel.teams = Array(viewModel.teams.prefix(newValue))
+                            }
+                        }
+                    
+                    Stepper("Players per Team: \(viewModel.playersPerTeam)", value: $viewModel.playersPerTeam, in: 2...6)
+                    
+                    Stepper("Counting Scores: \(viewModel.countingScores)", value: $viewModel.countingScores, in: 1...viewModel.playersPerTeam)
+                }
+                
                 teamsSection
+                
                 amountsSection
             }
             .navigationTitle(viewModel.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { toolbarContent }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(viewModel.navigationTitle == "Edit Alabama" ? "Update" : "Create") {
+                        viewModel.createBet()
+                        dismiss()
+                    }
+                    .disabled(!viewModel.isValid)
+                }
+            }
             .sheet(isPresented: $showPlayerSelection) {
                 MultiPlayerSelectionView(
                     selectedPlayers: $selectedPlayers,
                     requiredCount: viewModel.playersPerTeam,
                     onComplete: { players in
-                        viewModel.updateTeams(at: currentTeamIndex, with: players)
+                        viewModel.teams[currentTeamIndex] = players
                     },
-                    allPlayers: allPlayers
+                    allPlayers: allPlayers,
+                    excludedPlayers: excludedPlayers,
+                    teamName: "Team \(currentTeamIndex + 1)",
+                    teamColor: teamColors[currentTeamIndex]
                 )
                 .environmentObject(userProfile)
             }
@@ -113,23 +161,8 @@ struct AlabamaSetupView: View {
         }
     }
     
-    private var gameSetupSection: some View {
-        Section(header: Text("Game Setup")) {
-            Stepper("Number of Teams: \(viewModel.numberOfTeams)", value: $viewModel.numberOfTeams, in: 2...4)
-                .onChange(of: viewModel.numberOfTeams) { oldValue, newValue in
-                    if viewModel.teams.count < newValue {
-                        viewModel.teams.append([])
-                    } else if viewModel.teams.count > newValue {
-                        viewModel.teams = Array(viewModel.teams.prefix(newValue))
-                    }
-                }
-            Stepper("Players per Team: \(viewModel.playersPerTeam)", value: $viewModel.playersPerTeam, in: 2...6)
-            Stepper("Counting Scores: \(viewModel.countingScores)", value: $viewModel.countingScores, in: 2...viewModel.playersPerTeam)
-        }
-    }
-    
     private var teamsSection: some View {
-        Section(header: Text("Teams")) {
+        Section(header: Text("TEAMS")) {
             ForEach(0..<viewModel.teams.count, id: \.self) { teamIndex in
                 TeamRow(
                     teamIndex: teamIndex,
@@ -150,7 +183,7 @@ struct AlabamaSetupView: View {
     }
     
     private var amountsSection: some View {
-        Section(header: Text("Amounts")) {
+        Section(header: Text("AMOUNTS")) {
             BetAmountField(
                 label: "Alabama",
                 emoji: "🎯",
@@ -177,23 +210,6 @@ struct AlabamaSetupView: View {
             )
         }
     }
-    
-    private var toolbarContent: some ToolbarContent {
-        Group {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Cancel") {
-                    dismiss()
-                }
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(viewModel.navigationTitle == "Edit Alabama Game" ? "Update" : "Create") {
-                    viewModel.createBet()
-                    dismiss()
-                }
-                .disabled(!viewModel.isValid)
-            }
-        }
-    }
 }
 
 private struct TeamRow: View {
@@ -202,27 +218,52 @@ private struct TeamRow: View {
     let onSelectPlayers: () -> Void
     let onChangePlayers: () -> Void
     
+    private let teamColors: [Color] = [
+        Color(red: 0.91, green: 0.3, blue: 0.24),   // Vibrant Red
+        Color(red: 0.0, green: 0.48, blue: 0.8),    // Ocean Blue
+        Color(red: 0.13, green: 0.55, blue: 0.13),  // Forest Green
+        Color(red: 0.6, green: 0.2, blue: 0.8)      // Royal Purple
+    ]
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Team \(teamIndex + 1)")
                 .font(.headline)
+                .foregroundColor(teamColors[teamIndex])
             
             if team.isEmpty {
                 Button(action: onSelectPlayers) {
                     Text("Select Players")
-                        .foregroundColor(.blue)
+                        .foregroundColor(teamColors[teamIndex])
                 }
             } else {
                 ForEach(team, id: \.id) { player in
                     Text(player.firstName)
                         .foregroundColor(.primary)
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(teamColors[teamIndex].opacity(0.2))
+                        )
                 }
                 Button(action: onChangePlayers) {
                     Text("Change Players")
-                        .foregroundColor(.blue)
+                        .foregroundColor(teamColors[teamIndex])
                 }
             }
         }
         .padding(.vertical, 8)
+        .padding(.horizontal)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(teamColors[teamIndex].opacity(0.1))
+        )
+    }
+}
+
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

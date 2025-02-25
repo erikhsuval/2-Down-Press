@@ -47,12 +47,12 @@ public enum BetType: String, CaseIterable, Identifiable {
     
     public var emoji: String {
         switch self {
-        case .individualMatch: return "person.2"
-        case .fourBallMatch: return "person.3"
-        case .alabama: return "person.3.sequence"
-        case .doDas: return "2.circle"
-        case .skins: return "dollarsign.circle"
-        case .wolf: return "person.2.circle"
+        case .individualMatch: return "👥"
+        case .fourBallMatch: return "👥"
+        case .alabama: return "🏌️"
+        case .doDas: return "✌️"
+        case .skins: return "💰"
+        case .wolf: return "🐺"
         }
     }
 }
@@ -100,8 +100,8 @@ public struct BetTypeCard: View {
     public var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: imageName)
-                    .font(.title)
+                Text(imageName)
+                    .font(.system(size: 30))
                     .foregroundColor(.primaryGreen)
                 
                 Text(title)

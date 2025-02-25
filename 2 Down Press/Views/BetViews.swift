@@ -289,6 +289,7 @@ struct BetTypeSection<Content: View>: View {
 struct PlayerSelectionButton: View {
     let title: String
     let playerName: String
+    let icon: String
     
     var body: some View {
         HStack {
@@ -300,7 +301,7 @@ struct PlayerSelectionButton: View {
                     .font(.headline)
             }
             Spacer()
-            Image(systemName: "chevron.right")
+            Image(systemName: icon)
                 .foregroundColor(.gray)
         }
         .padding()
@@ -323,15 +324,23 @@ struct MultiPlayerSelectionView: View {
     let requiredCount: Int
     let onComplete: ([BetComponents.Player]) -> Void
     let allPlayers: [BetComponents.Player]
+    let excludedPlayers: [BetComponents.Player]
+    let teamName: String
+    let teamColor: Color
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userProfile: UserProfile
     
     var displayPlayers: [BetComponents.Player] {
         var players = allPlayers
-        if let currentUser = userProfile.currentUser {
+        // Add current user if available and not already in the list
+        if let currentUser = userProfile.currentUser,
+           !players.contains(where: { $0.id == currentUser.id }) {
             players.insert(currentUser, at: 0)
         }
-        return players
+        // Filter out excluded players
+        return players.filter { player in
+            !excludedPlayers.contains { $0.id == player.id }
+        }
     }
     
     var body: some View {
@@ -350,13 +359,13 @@ struct MultiPlayerSelectionView: View {
                             Spacer()
                             if selectedPlayers.contains(where: { $0.id == player.id }) {
                                 Image(systemName: "checkmark")
-                                    .foregroundColor(.primaryGreen)
+                                    .foregroundColor(teamColor)
                             }
                         }
                     }
                 }
             }
-            .navigationTitle("Select Players")
+            .navigationTitle("Select \(teamName) Players")
             .navigationBarItems(
                 leading: Button("Cancel") {
                     dismiss()
