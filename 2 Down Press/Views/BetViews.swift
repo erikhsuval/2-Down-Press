@@ -271,21 +271,6 @@ struct DoDaBetsSection: View {
     }
 }
 
-struct BetTypeSection<Content: View>: View {
-    let title: String
-    let content: () -> Content
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
-                .foregroundColor(.gray)
-            content()
-                .padding(.horizontal)
-        }
-    }
-}
-
 struct PlayerSelectionButton: View {
     let title: String
     let playerName: String

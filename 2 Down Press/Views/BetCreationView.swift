@@ -17,89 +17,121 @@ struct BetCreationView: View {
     
     // Use all available players instead of just selected ones
     private var availablePlayers: [BetComponents.Player] {
-        // Get all players in current bets
+        // Get all players in current bets of the same type
         var playersInBets = Set<UUID>()
         
-        betManager.individualBets.forEach { bet in
-            playersInBets.insert(bet.player1.id)
-            playersInBets.insert(bet.player2.id)
-        }
-        
-        betManager.fourBallBets.forEach { bet in
-            playersInBets.insert(bet.team1Player1.id)
-            playersInBets.insert(bet.team1Player2.id)
-            playersInBets.insert(bet.team2Player1.id)
-            playersInBets.insert(bet.team2Player2.id)
-        }
-        
-        betManager.alabamaBets.forEach { bet in
-            bet.teams.forEach { team in
-                team.forEach { player in
+        switch selectedBetType {
+        case .individualMatch, .fourBallMatch:
+            // For individual and fourball matches, don't filter out any players
+            // since they can participate in multiple bets
+            break
+            
+        case .alabama:
+            betManager.alabamaBets.forEach { bet in
+                bet.teams.forEach { team in
+                    team.forEach { player in
+                        playersInBets.insert(player.id)
+                    }
+                }
+            }
+            
+        case .doDas:
+            betManager.doDaBets.forEach { bet in
+                bet.players.forEach { player in
                     playersInBets.insert(player.id)
                 }
             }
+            
+        case .skins:
+            betManager.skinsBets.forEach { bet in
+                bet.players.forEach { player in
+                    playersInBets.insert(player.id)
+                }
+            }
+            
+        case .wolf:
+            // Not implemented yet
+            break
+            
+        case nil:
+            // No bet type selected yet
+            break
         }
         
-        betManager.doDaBets.forEach { bet in
-            bet.players.forEach { player in
-                playersInBets.insert(player.id)
+        // Start with all players
+        var availablePlayers = MockData.allPlayers
+        
+        // Always include current user if available
+        if let currentUser = userProfile.currentUser,
+           !availablePlayers.contains(where: { $0.id == currentUser.id }) {
+            availablePlayers.insert(currentUser, at: 0)
+        }
+        
+        // Only filter out players if a bet type is selected and it's not individual or fourball
+        if let betType = selectedBetType,
+           betType != .individualMatch && betType != .fourBallMatch {
+            availablePlayers = availablePlayers.filter { player in
+                !playersInBets.contains(player.id)
             }
         }
         
-        betManager.skinsBets.forEach { bet in
-            bet.players.forEach { player in
-                playersInBets.insert(player.id)
-            }
-        }
-        
-        // Filter out players already in bets
-        return MockData.allPlayers.filter { player in
-            !playersInBets.contains(player.id)
-        }
+        return availablePlayers
     }
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Header with Menu Button
-                HStack {
-                    Button(action: { showMenu = true }) {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.title2)
+        ZStack {
+            NavigationView {
+                VStack(spacing: 0) {
+                    // Header with Menu Button
+                    HStack {
+                        Button(action: { showMenu = true }) {
+                            Image(systemName: "line.3.horizontal")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                        }
+                        
+                        Spacer()
+                        
+                        Text("Select Game Type")
+                            .font(.title2.bold())
                             .foregroundColor(.white)
-                    }
-                    
-                    Spacer()
-                    
-                    Text("Select Game Type")
-                        .font(.title2.bold())
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding()
-                .background(Color.primaryGreen)
-                
-                // Bet Type Grid
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                        ForEach(BetType.allCases) { betType in
-                            BetTypeCard(
-                                title: betType.rawValue,
-                                description: betType.description,
-                                imageName: betType.emoji,
-                                action: { handleBetSelection(betType) }
-                            )
+                        
+                        Spacer()
+                        
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "xmark")
+                                .font(.title2)
+                                .foregroundColor(.white)
                         }
                     }
+                    .padding()
+                    .background(Color.primaryGreen)
+                    
+                    // Bet Type Grid
+                    ScrollView {
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                            ForEach(BetType.allCases) { betType in
+                                BetTypeCard(
+                                    title: betType.rawValue,
+                                    description: betType.description,
+                                    imageName: betType.emoji,
+                                    action: { handleBetSelection(betType) }
+                                )
+                            }
+                        }
+                    }
+                    .padding()
                 }
-                .padding()
+                .navigationBarHidden(true)
+            }
+            
+            // Side Menu
+            if showMenu {
+                SideMenuView(
+                    isShowing: $showMenu,
+                    showPlayerList: .constant(false),
+                    showFourBallMatchSetup: .constant(false)
+                )
             }
         }
         .sheet(isPresented: $showIndividualMatchSetup) {
@@ -107,7 +139,7 @@ struct BetCreationView: View {
                 .environmentObject(userProfile)
         }
         .sheet(isPresented: $showFourBallMatchSetup) {
-            FourBallMatchSetupView(selectedPlayers: availablePlayers)
+            FourBallMatchSetupView(selectedPlayers: availablePlayers, betManager: betManager)
                 .environmentObject(userProfile)
                 .environmentObject(betManager)
         }

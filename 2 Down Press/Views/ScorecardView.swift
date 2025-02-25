@@ -176,7 +176,16 @@ struct ScorecardView: View {
     }
     
     private func populateTestScores() {
-        for player in players {
+        let contentView = ScorecardContentView(
+            players: players,
+            selectedPlayerIndex: $selectedPlayerIndex,
+            scores: $scores,
+            teeBox: teeBox,
+            dragOffset: _dragOffset,
+            updateScore: updateScore
+        )
+        
+        for player in contentView.orderedPlayers {
             if let testScores = TestScoreData.scores[player.firstName] {
                 scores[player.id] = testScores
             }
@@ -234,10 +243,19 @@ struct ScorecardHeaderView: View {
                     Image(systemName: "person.badge.plus")
                         .font(.title2)
                         .foregroundColor(.white)
+                        .padding(8)
+                        .background(Color.white.opacity(0.2))
+                        .clipShape(Circle())
                 }
             }
             .padding()
-            .background(Color.primaryGreen)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.primaryGreen, Color.primaryGreen.opacity(0.9)]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
             
             if showTestScoresButton {
                 HStack {
@@ -269,6 +287,34 @@ struct ScorecardContentView: View {
     let updateScore: (BetComponents.Player, Int, String) -> Void
     @EnvironmentObject private var betManager: BetManager
     
+    var orderedPlayers: [BetComponents.Player] {
+        // First, try to get players from Alabama bets
+        if let alabamaBet = betManager.alabamaBets.first {
+            var orderedPlayers: [BetComponents.Player] = []
+            
+            // Add players team by team
+            for team in alabamaBet.teams {
+                orderedPlayers.append(contentsOf: team)
+            }
+            
+            // Add swing man if present
+            if let swingMan = alabamaBet.swingMan {
+                orderedPlayers.append(swingMan)
+            }
+            
+            // Add any remaining players not in Alabama teams
+            let remainingPlayers = players.filter { player in
+                !orderedPlayers.contains { $0.id == player.id }
+            }
+            orderedPlayers.append(contentsOf: remainingPlayers)
+            
+            return orderedPlayers
+        }
+        
+        // If no Alabama bets, return original order
+        return players
+    }
+    
     var body: some View {
         if !players.isEmpty {
             ScrollView {
@@ -276,14 +322,18 @@ struct ScorecardContentView: View {
                     // Player carousel
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
-                            ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
+                            ForEach(orderedPlayers, id: \.id) { player in
                                 PlayerButton(
                                     player: player,
-                                    isSelected: index == selectedPlayerIndex,
+                                    isSelected: orderedPlayers[selectedPlayerIndex].id == player.id,
                                     teamColor: getTeamColor(for: player)
                                 )
                                 .onTapGesture {
-                                    selectedPlayerIndex = index
+                                    if let index = orderedPlayers.firstIndex(where: { $0.id == player.id }) {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            selectedPlayerIndex = index
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -298,13 +348,13 @@ struct ScorecardContentView: View {
                             }
                             .onEnded { value in
                                 let threshold: CGFloat = 50
-                                if value.translation.width > threshold && players.count > 1 {
+                                if value.translation.width > threshold && orderedPlayers.count > 1 {
                                     withAnimation(.easeInOut) {
-                                        selectedPlayerIndex = (selectedPlayerIndex - 1 + players.count) % players.count
+                                        selectedPlayerIndex = (selectedPlayerIndex - 1 + orderedPlayers.count) % orderedPlayers.count
                                     }
-                                } else if value.translation.width < -threshold && players.count > 1 {
+                                } else if value.translation.width < -threshold && orderedPlayers.count > 1 {
                                     withAnimation(.easeInOut) {
-                                        selectedPlayerIndex = (selectedPlayerIndex + 1) % players.count
+                                        selectedPlayerIndex = (selectedPlayerIndex + 1) % orderedPlayers.count
                                     }
                                 }
                             }
@@ -327,23 +377,23 @@ struct ScorecardContentView: View {
                         // Front 9
                         ScorecardGridView(
                             holes: Array(teeBox.holes.prefix(9)),
-                            scores: scores[players[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
+                            scores: scores[orderedPlayers[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
                         ) { index, score in
-                            updateScore(players[selectedPlayerIndex], index, score)
+                            updateScore(orderedPlayers[selectedPlayerIndex], index, score)
                         }
                         
                         // Back 9
                         ScorecardGridView(
                             holes: Array(teeBox.holes.suffix(9)),
-                            scores: scores[players[selectedPlayerIndex].id]?.suffix(9).map { String($0) } ?? Array(repeating: "", count: 9)
+                            scores: scores[orderedPlayers[selectedPlayerIndex].id]?.suffix(9).map { String($0) } ?? Array(repeating: "", count: 9)
                         ) { index, score in
-                            updateScore(players[selectedPlayerIndex], index + 9, score)
+                            updateScore(orderedPlayers[selectedPlayerIndex], index + 9, score)
                         }
                         
                         // Totals
                         ScorecarTotalsView(
                             holes: teeBox.holes,
-                            scores: scores[players[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
+                            scores: scores[orderedPlayers[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
                         )
                     }
                     .padding(.bottom)
@@ -453,6 +503,17 @@ struct CustomNumberPad: View {
             HStack(spacing: 8) {
                 numberButton("0")
                 Button(action: {
+                    text = "X"
+                }) {
+                    Text("X")
+                        .font(.title2)
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(Color.red.opacity(0.2))
+                        .cornerRadius(8)
+                }
+                Button(action: {
                     text = ""
                 }) {
                     Image(systemName: "delete.left")
@@ -461,16 +522,17 @@ struct CustomNumberPad: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
                         .background(Color.gray.opacity(0.2))
-                }
-                Button(action: onDismiss) {
-                    Image(systemName: "keyboard.chevron.compact.down")
-                        .font(.title2)
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Color.gray.opacity(0.2))
                         .cornerRadius(8)
                 }
+            }
+            Button(action: onDismiss) {
+                Image(systemName: "keyboard.chevron.compact.down")
+                    .font(.title2)
+                    .foregroundColor(.primary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.gray.opacity(0.2))
+                    .cornerRadius(8)
             }
         }
         .padding()
@@ -499,7 +561,10 @@ struct ScoreDisplayView: View {
     @State private var showCustomKeypad = false
     
     var scoreInt: Int? {
-        Int(score)
+        if score == "X" {
+            return par + 4  // X is treated as par + 4
+        }
+        return Int(score)
     }
     
     var body: some View {
@@ -511,7 +576,13 @@ struct ScoreDisplayView: View {
                     Text("")
                         .frame(maxWidth: .infinity)
                         .background(Color.white.opacity(0.95))
-                } else if let currentScore = scoreInt {
+                } else if score == "X" {
+                    Text("X")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white.opacity(0.95))
+                } else if let currentScore = Int(score) {
                     Text("\(currentScore)")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(colorForScore(currentScore))
@@ -531,7 +602,15 @@ struct ScoreDisplayView: View {
             .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
             .padding(.horizontal, 4)
             
-            if let currentScore = scoreInt {
+            if score == "X" {
+                HStack {
+                    Spacer()
+                    Text("🚫")
+                        .font(.system(size: 16))
+                    Spacer()
+                }
+                .frame(height: 20)
+            } else if let currentScore = Int(score) {
                 HStack {
                     Spacer()
                     if currentScore == 1 {
@@ -818,55 +897,72 @@ struct PlayerSelectionView: View {
     @State private var availablePlayers: [BetComponents.Player] = []
     
     var body: some View {
-        NavigationView {
-            VStack {
-                if availablePlayers.isEmpty {
-                    VStack {
-                        Text("No Available Players")
-                            .font(.headline)
-                        Text("All players have been added to groups")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                    }
-                    .frame(maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(availablePlayers) { player in
-                                PlayerSelectionRow(
-                                    player: player,
-                                    isSelected: tempSelectedPlayers.contains(player.id)
-                                )
-                                .onTapGesture {
-                                    if tempSelectedPlayers.contains(player.id) {
-                                        tempSelectedPlayers.remove(player.id)
-                                    } else {
-                                        tempSelectedPlayers.insert(player.id)
-                                    }
+        VStack {
+            // Custom header
+            HStack {
+                Spacer()
+                
+                Text("Select Players")
+                    .font(.title3.bold())
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                }
+            }
+            .padding()
+            .background(Color.primaryGreen)
+            
+            if availablePlayers.isEmpty {
+                VStack {
+                    Text("No Available Players")
+                        .font(.headline)
+                    Text("All players have been added to groups")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
+                .frame(maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(availablePlayers) { player in
+                            PlayerSelectionRow(
+                                player: player,
+                                isSelected: tempSelectedPlayers.contains(player.id)
+                            )
+                            .onTapGesture {
+                                if tempSelectedPlayers.contains(player.id) {
+                                    tempSelectedPlayers.remove(player.id)
+                                } else {
+                                    tempSelectedPlayers.insert(player.id)
                                 }
                             }
                         }
-                        .padding(.vertical)
                     }
+                    .padding(.vertical)
                 }
-                
-                Button(action: {
-                    let newPlayers = availablePlayers.filter { tempSelectedPlayers.contains($0.id) }
-                    selectedPlayers.append(contentsOf: newPlayers)
-                    dismiss()
-                }) {
-                    Text("Done")
-                        .font(.title3.bold())
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(Color.primaryGreen)
-                        .cornerRadius(25)
-                }
-                .padding()
             }
-            .navigationTitle("Select Players")
+            
+            Button(action: {
+                let newPlayers = availablePlayers.filter { tempSelectedPlayers.contains($0.id) }
+                selectedPlayers.append(contentsOf: newPlayers)
+                dismiss()
+            }) {
+                Text("Done")
+                    .font(.title3.bold())
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.primaryGreen)
+                    .cornerRadius(25)
+            }
+            .padding()
         }
+        .background(Color.gray.opacity(0.1))
         .onAppear {
             availablePlayers = MockData.allPlayers.filter { player in
                 !selectedPlayers.contains { $0.id == player.id }
@@ -948,8 +1044,8 @@ struct LeaderboardView: View {
                 
                 // Column Headers
                 HStack {
-                    Text("Name")
-                        .frame(width: 120, alignment: .leading)
+                    Text("Player")
+                        .frame(width: 100, alignment: .leading)
                     Spacer()
                     Text("Thru")
                         .frame(width: 50)
@@ -960,8 +1056,11 @@ struct LeaderboardView: View {
                     Text("Win/Loss")
                         .frame(width: 70)
                     Spacer()
+                    Text("Skins")
+                        .frame(width: 50)
+                    Spacer()
                     Text("DO DAs")
-                        .frame(width: 60)
+                        .frame(width: 50)
                 }
                 .font(.subheadline.bold())
                 .padding(.horizontal)
@@ -990,6 +1089,7 @@ struct LeaderboardView: View {
                                 scoreColor: stats.scoreColor,
                                 winnings: viewModel.winnings,
                                 doDas: stats.doDas,
+                                skins: stats.skins,
                                 isExpanded: isExpanded,
                                 betManager: betManager,
                                 playerScores: playerScores,
@@ -1121,16 +1221,56 @@ class PlayerStatsViewModel {
         self.betManager = betManager
     }
     
-    var stats: (lastHole: Int, score: String, scoreColor: Color, doDas: Int) {
+    var stats: (lastHole: Int, score: String, scoreColor: Color, doDas: Int, skins: Int) {
         let scores = playerScores[player.id] ?? []
         var lastHolePlayed = 0
         var totalScore = 0
         var doDaCount = 0
+        var skinsCount = 0
         
+        // Count skins from skins bets
+        for skinsBet in betManager.skinsBets {
+            if skinsBet.players.contains(where: { $0.id == player.id }) {
+                // Only include players who have scores
+                let activePlayers = skinsBet.players.filter { playerScores.keys.contains($0.id) }
+                
+                // For each hole
+                for holeIndex in 0..<18 {
+                    // Get valid scores for this hole
+                    var holeScores: [(playerId: UUID, score: Int)] = []
+                    for betPlayer in activePlayers {
+                        let scoreStr = playerScores[betPlayer.id]?[holeIndex] ?? ""
+                        if scoreStr == "X" {
+                            holeScores.append((betPlayer.id, teeBox.holes[holeIndex].par + 4))
+                        } else if let score = Int(scoreStr) {
+                            holeScores.append((betPlayer.id, score))
+                        }
+                    }
+                    
+                    // Skip hole if not all players have scores
+                    guard holeScores.count == activePlayers.count else { continue }
+                    
+                    // Find lowest score for the hole
+                    let lowestScore = holeScores.min { $0.score < $1.score }?.score
+                    guard let lowestScore = lowestScore else { continue }
+                    
+                    // Count how many players have the lowest score
+                    let playersWithLowestScore = holeScores.filter { $0.score == lowestScore }
+                    
+                    // If only one player has the lowest score and it's our player, they won this skin
+                    if playersWithLowestScore.count == 1 && playersWithLowestScore[0].playerId == player.id {
+                        skinsCount += 1
+                    }
+                }
+            }
+        }
+
         for (index, scoreStr) in scores.enumerated() {
             if !scoreStr.isEmpty {
                 lastHolePlayed = index + 1
-                if let score = Int(scoreStr) {
+                if scoreStr == "X" {
+                    totalScore += 4  // X adds 4 to the relative to par score
+                } else if let score = Int(scoreStr) {
                     totalScore += score - teeBox.holes[index].par
                     if score == 2 {
                         doDaCount += 1
@@ -1146,7 +1286,7 @@ class PlayerStatsViewModel {
             return .red
         }()
         
-        return (lastHolePlayed, scoreString, scoreColor, doDaCount)
+        return (lastHolePlayed, scoreString, scoreColor, doDaCount, skinsCount)
     }
     
     var winnings: Double {
@@ -1166,6 +1306,7 @@ struct PlayerRowView: View {
     let scoreColor: Color
     let winnings: Double
     let doDas: Int
+    let skins: Int
     let isExpanded: Bool
     let betManager: BetManager
     let playerScores: [UUID: [String]]
@@ -1177,8 +1318,8 @@ struct PlayerRowView: View {
             // Main player row
             Button(action: onExpandToggle) {
                 HStack {
-                    Text(player.firstName + " " + player.lastName)
-                        .frame(width: 120, alignment: .leading)
+                    Text(player.firstName)
+                        .frame(width: 100, alignment: .leading)
                     Spacer()
                     Text("\(lastHole)")
                         .frame(width: 50)
@@ -1191,8 +1332,11 @@ struct PlayerRowView: View {
                         .foregroundColor(winnings >= 0 ? .green : .red)
                         .frame(width: 70)
                     Spacer()
+                    Text("\(skins)")
+                        .frame(width: 50)
+                    Spacer()
                     Text("\(doDas)")
-                        .frame(width: 60)
+                        .frame(width: 50)
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 12)

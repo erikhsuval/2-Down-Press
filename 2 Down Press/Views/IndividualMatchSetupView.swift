@@ -5,8 +5,8 @@ import os
 class IndividualMatchSetupViewModel: ObservableObject {
     @Published var selectedPlayer1: BetComponents.Player?
     @Published var selectedPlayer2: BetComponents.Player?
-    @Published var perHoleAmount: Double = 0
-    @Published var perBirdieAmount: Double = 0
+    @Published var perHoleAmount: String = ""
+    @Published var perBirdieAmount: String = ""
     @Published var pressOn9and18 = false
     
     private let editingBet: IndividualMatchBet?
@@ -20,8 +20,8 @@ class IndividualMatchSetupViewModel: ObservableObject {
         if let bet = editingBet {
             self.selectedPlayer1 = bet.player1
             self.selectedPlayer2 = bet.player2
-            self.perHoleAmount = bet.perHoleAmount
-            self.perBirdieAmount = bet.perBirdieAmount
+            self.perHoleAmount = String(bet.perHoleAmount)
+            self.perBirdieAmount = String(bet.perBirdieAmount)
             self.pressOn9and18 = bet.pressOn9and18
             logger.debug("Initialized with existing bet between \(bet.player1.firstName) and \(bet.player2.firstName)")
         }
@@ -31,8 +31,8 @@ class IndividualMatchSetupViewModel: ObservableObject {
         selectedPlayer1 != nil && 
         selectedPlayer2 != nil && 
         selectedPlayer1 != selectedPlayer2 &&
-        perHoleAmount > 0 && 
-        perBirdieAmount > 0
+        (Double(perHoleAmount) ?? 0) > 0 && 
+        (Double(perBirdieAmount) ?? 0) > 0
     }
     
     var navigationTitle: String {
@@ -41,7 +41,9 @@ class IndividualMatchSetupViewModel: ObservableObject {
     
     func createBet() {
         guard let player1 = selectedPlayer1,
-              let player2 = selectedPlayer2 else { return }
+              let player2 = selectedPlayer2,
+              let holeAmount = Double(perHoleAmount),
+              let birdieAmount = Double(perBirdieAmount) else { return }
         
         logger.debug("Creating bet between \(player1.firstName) and \(player2.firstName)")
         
@@ -53,8 +55,8 @@ class IndividualMatchSetupViewModel: ObservableObject {
         betManager.addIndividualBet(
             player1: player1,
             player2: player2,
-            perHoleAmount: perHoleAmount,
-            perBirdieAmount: perBirdieAmount,
+            perHoleAmount: holeAmount,
+            perBirdieAmount: birdieAmount,
             pressOn9and18: pressOn9and18
         )
         
@@ -113,23 +115,29 @@ struct IndividualMatchSetupView: View {
                 
                 Section(header: Text("BET DETAILS")) {
                     VStack(spacing: 16) {
-                        BetAmountField(
-                            label: "Per Hole",
-                            emoji: "⛳️",
-                            amount: Binding(
-                                get: { viewModel.perHoleAmount },
-                                set: { viewModel.perHoleAmount = $0 }
-                            )
-                        )
+                        // Per Hole Amount
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Per Hole")
+                                .font(.headline)
+                            QuickAmountSelector(amount: Binding(
+                                get: { Double(viewModel.perHoleAmount) ?? 0 },
+                                set: { newValue in
+                                    viewModel.perHoleAmount = String(format: "%.0f", newValue)
+                                }
+                            ))
+                        }
                         
-                        BetAmountField(
-                            label: "Per Birdie",
-                            emoji: "🐦",
-                            amount: Binding(
-                                get: { viewModel.perBirdieAmount },
-                                set: { viewModel.perBirdieAmount = $0 }
-                            )
-                        )
+                        // Per Birdie Amount
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Per Birdie")
+                                .font(.headline)
+                            QuickAmountSelector(amount: Binding(
+                                get: { Double(viewModel.perBirdieAmount) ?? 0 },
+                                set: { newValue in
+                                    viewModel.perBirdieAmount = String(format: "%.0f", newValue)
+                                }
+                            ))
+                        }
                         
                         Toggle("Press on 9 & 18", isOn: $viewModel.pressOn9and18)
                     }

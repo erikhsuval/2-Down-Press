@@ -204,7 +204,7 @@ struct MyBetsView: View {
             }
             .sheet(isPresented: $showNewFourBallBet) {
                 NavigationView {
-                    FourBallMatchSetupView(editingBet: nil, selectedPlayers: allPlayers)
+                    FourBallMatchSetupView(editingBet: nil, selectedPlayers: allPlayers, betManager: betManager)
                         .environmentObject(betManager)
                         .environmentObject(userProfile)
                 }
@@ -232,7 +232,7 @@ struct MyBetsView: View {
             .sheet(isPresented: $showEditFourBallBet) {
                 if let bet = betToEdit as? FourBallMatchBet {
                     NavigationView {
-                        FourBallMatchSetupView(editingBet: bet, selectedPlayers: allPlayers)
+                        FourBallMatchSetupView(editingBet: bet, selectedPlayers: allPlayers, betManager: betManager)
                             .environmentObject(betManager)
                             .environmentObject(userProfile)
                     }

@@ -7,8 +7,8 @@ class FourBallMatchSetupViewModel: ObservableObject {
     @Published var team1Player2: BetComponents.Player? = nil
     @Published var team2Player1: BetComponents.Player? = nil
     @Published var team2Player2: BetComponents.Player? = nil
-    @Published var perHoleAmount: Double = 0
-    @Published var perBirdieAmount: Double = 0
+    @Published var perHoleAmount: String = ""
+    @Published var perBirdieAmount: String = ""
     @Published var pressOn9and18 = false
     
     private let editingBet: FourBallMatchBet?
@@ -23,8 +23,8 @@ class FourBallMatchSetupViewModel: ObservableObject {
             self.team1Player2 = bet.team1Player2
             self.team2Player1 = bet.team2Player1
             self.team2Player2 = bet.team2Player2
-            self.perHoleAmount = bet.perHoleAmount
-            self.perBirdieAmount = bet.perBirdieAmount
+            self.perHoleAmount = String(bet.perHoleAmount)
+            self.perBirdieAmount = String(bet.perBirdieAmount)
             self.pressOn9and18 = bet.pressOn9and18
         }
     }
@@ -37,8 +37,8 @@ class FourBallMatchSetupViewModel: ObservableObject {
         team1Player1 != team1Player2 &&
         team2Player1 != team2Player2 &&
         !Set([team1Player1?.id, team1Player2?.id, team2Player1?.id, team2Player2?.id].compactMap { $0 }).isEmpty &&
-        perHoleAmount > 0 &&
-        perBirdieAmount > 0
+        (Double(perHoleAmount) ?? 0) > 0 &&
+        (Double(perBirdieAmount) ?? 0) > 0
     }
     
     var navigationTitle: String {
@@ -49,7 +49,9 @@ class FourBallMatchSetupViewModel: ObservableObject {
         guard let t1p1 = team1Player1,
               let t1p2 = team1Player2,
               let t2p1 = team2Player1,
-              let t2p2 = team2Player2 else { return }
+              let t2p2 = team2Player2,
+              let holeAmount = Double(perHoleAmount),
+              let birdieAmount = Double(perBirdieAmount) else { return }
         
         if let existingBet = editingBet {
             betManager.deleteFourBallBet(existingBet)
@@ -60,8 +62,8 @@ class FourBallMatchSetupViewModel: ObservableObject {
             team1Player2: t1p2,
             team2Player1: t2p1,
             team2Player2: t2p2,
-            perHoleAmount: perHoleAmount,
-            perBirdieAmount: perBirdieAmount,
+            perHoleAmount: holeAmount,
+            perBirdieAmount: birdieAmount,
             pressOn9and18: pressOn9and18
         )
     }
@@ -80,9 +82,9 @@ struct FourBallMatchSetupView: View {
     @State private var currentSelection: TeamPlayerSelection = .team1Player1
     let selectedPlayers: [BetComponents.Player]
     
-    init(editingBet: FourBallMatchBet? = nil, selectedPlayers: [BetComponents.Player]) {
+    init(editingBet: FourBallMatchBet? = nil, selectedPlayers: [BetComponents.Player], betManager: BetManager) {
         self.selectedPlayers = selectedPlayers
-        _viewModel = StateObject(wrappedValue: FourBallMatchSetupViewModel(editingBet: editingBet, betManager: BetManager()))
+        _viewModel = StateObject(wrappedValue: FourBallMatchSetupViewModel(editingBet: editingBet, betManager: betManager))
     }
     
     private func availablePlayers(for selection: TeamPlayerSelection) -> [BetComponents.Player] {
@@ -162,23 +164,29 @@ struct FourBallMatchSetupView: View {
                 
                 Section(header: Text("BET DETAILS")) {
                     VStack(spacing: 16) {
-                        BetAmountField(
-                            label: "Per Hole",
-                            emoji: "⛳️",
-                            amount: Binding(
-                                get: { viewModel.perHoleAmount },
-                                set: { viewModel.perHoleAmount = $0 }
-                            )
-                        )
+                        // Per Hole Amount
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Per Hole")
+                                .font(.headline)
+                            QuickAmountSelector(amount: Binding(
+                                get: { Double(viewModel.perHoleAmount) ?? 0 },
+                                set: { newValue in
+                                    viewModel.perHoleAmount = String(format: "%.0f", newValue)
+                                }
+                            ))
+                        }
                         
-                        BetAmountField(
-                            label: "Per Birdie",
-                            emoji: "🐦",
-                            amount: Binding(
-                                get: { viewModel.perBirdieAmount },
-                                set: { viewModel.perBirdieAmount = $0 }
-                            )
-                        )
+                        // Per Birdie Amount
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Per Birdie")
+                                .font(.headline)
+                            QuickAmountSelector(amount: Binding(
+                                get: { Double(viewModel.perBirdieAmount) ?? 0 },
+                                set: { newValue in
+                                    viewModel.perBirdieAmount = String(format: "%.0f", newValue)
+                                }
+                            ))
+                        }
                         
                         Toggle("Press on 9 & 18", isOn: $viewModel.pressOn9and18)
                     }
