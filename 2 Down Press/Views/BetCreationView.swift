@@ -92,7 +92,7 @@ struct BetCreationView: View {
                         
                         Spacer()
                         
-                        Text("Select Game Type")
+                        Text("Create Your Bet")
                             .font(.title2.bold())
                             .foregroundColor(.white)
                         

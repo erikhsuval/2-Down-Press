@@ -6,6 +6,7 @@ import SwiftUI
 public extension Color {
     static let primaryGreen = Color("PrimaryGreen")
     static let deepNavyBlue = Color(hex: "1B365D")
+    static let primaryBlue = Color(hex: "1B365D")  // Same as deepNavyBlue for consistency
     static let teamGold = Color(hex: "D4AF37")  // This will be used for team assignments
     static let backgroundGray = Color(red: 0.95, green: 0.95, blue: 0.95)
     

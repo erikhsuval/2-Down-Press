@@ -477,6 +477,7 @@ public struct AlabamaBet: Identifiable {
     public let id: UUID
     public let teams: [[Player]]
     public let swingMan: Player?
+    public let swingManTeamIndex: Int?  // Track which team the swing man plays with
     public let countingScores: Int
     public let frontNineAmount: Double
     public let backNineAmount: Double
@@ -485,10 +486,11 @@ public struct AlabamaBet: Identifiable {
     public var playerScores: [UUID: [String]]?
     public var teeBox: TeeBox?
     
-    public init(teams: [[Player]], swingMan: Player? = nil, countingScores: Int, frontNineAmount: Double, backNineAmount: Double, lowBallAmount: Double, perBirdieAmount: Double) {
+    public init(teams: [[Player]], swingMan: Player? = nil, swingManTeamIndex: Int? = nil, countingScores: Int, frontNineAmount: Double, backNineAmount: Double, lowBallAmount: Double, perBirdieAmount: Double) {
         self.id = UUID()
         self.teams = teams
         self.swingMan = swingMan
+        self.swingManTeamIndex = swingManTeamIndex
         self.countingScores = countingScores
         self.frontNineAmount = frontNineAmount
         self.backNineAmount = backNineAmount
@@ -513,6 +515,16 @@ public struct AlabamaBet: Identifiable {
             let isFrontNine = holeIndex < 9
             let par = teeBoxToUse.holes[holeIndex].par
             
+            // Get swing man's score for this hole if available
+            var swingManScore: Int?
+            var swingManBirdie = false
+            if let swingMan = swingMan,
+               let scoreStr = scores[swingMan.id]?[holeIndex],
+               let score = Int(String(scoreStr)) {
+                swingManScore = score
+                swingManBirdie = score < par
+            }
+            
             // For each team
             for (teamIndex, team) in teams.enumerated() {
                 // Get valid scores for this hole
@@ -529,12 +541,9 @@ public struct AlabamaBet: Identifiable {
                 }
                 
                 // Add swing man's score if applicable
-                if let swingMan = swingMan,
-                   let scoreStr = scores[swingMan.id]?[holeIndex],
-                   let score = Int(String(scoreStr)) {
-                    teamScores.append(score)
-                    // Count swing man birdies
-                    if score < par {
+                if let swingManScore = swingManScore {
+                    teamScores.append(swingManScore)
+                    if swingManBirdie {
                         teamBirdies[teamIndex] += 1
                     }
                 }
@@ -567,45 +576,61 @@ public struct AlabamaBet: Identifiable {
             for otherTeamIndex in 0..<teams.count {
                 if teamIndex == otherTeamIndex { continue }
                 
+                var matchupTotal = 0.0
+                
                 // Front Nine Alabama
                 if frontNineTeamTotals[teamIndex] < frontNineTeamTotals[otherTeamIndex] {
-                    teamWinnings += frontNineAmount
+                    matchupTotal += frontNineAmount
                 } else if frontNineTeamTotals[teamIndex] > frontNineTeamTotals[otherTeamIndex] {
-                    teamWinnings -= frontNineAmount
+                    matchupTotal -= frontNineAmount
                 }
                 
                 // Back Nine Alabama
                 if backNineTeamTotals[teamIndex] < backNineTeamTotals[otherTeamIndex] {
-                    teamWinnings += backNineAmount
+                    matchupTotal += backNineAmount
                 } else if backNineTeamTotals[teamIndex] > backNineTeamTotals[otherTeamIndex] {
-                    teamWinnings -= backNineAmount
+                    matchupTotal -= backNineAmount
                 }
                 
                 // Front Nine Low Ball
                 if frontNineLowBallTotals[teamIndex] < frontNineLowBallTotals[otherTeamIndex] {
-                    teamWinnings += lowBallAmount
+                    matchupTotal += lowBallAmount
                 } else if frontNineLowBallTotals[teamIndex] > frontNineLowBallTotals[otherTeamIndex] {
-                    teamWinnings -= lowBallAmount
+                    matchupTotal -= lowBallAmount
                 }
                 
                 // Back Nine Low Ball
                 if backNineLowBallTotals[teamIndex] < backNineLowBallTotals[otherTeamIndex] {
-                    teamWinnings += lowBallAmount
+                    matchupTotal += lowBallAmount
                 } else if backNineLowBallTotals[teamIndex] > backNineLowBallTotals[otherTeamIndex] {
-                    teamWinnings -= lowBallAmount
+                    matchupTotal -= lowBallAmount
                 }
                 
                 // Birdie differential
                 let birdieDiff = teamBirdies[teamIndex] - teamBirdies[otherTeamIndex]
-                teamWinnings += Double(birdieDiff) * perBirdieAmount
+                matchupTotal += Double(birdieDiff) * perBirdieAmount
+                
+                // Calculate team size ratio
+                let thisTeamSize = team.count + (swingManTeamIndex == teamIndex ? 1 : 0)
+                let otherTeamSize = teams[otherTeamIndex].count + (swingManTeamIndex == otherTeamIndex ? 1 : 0)
+                let teamSizeRatio = Double(otherTeamSize) / Double(thisTeamSize)
+                
+                // Apply team size ratio to matchup total
+                matchupTotal *= teamSizeRatio
+                
+                // Only add half of the matchup total to avoid double counting
+                teamWinnings += matchupTotal / 2.0
             }
             
-            // Each player gets the full amount (no division)
+            // Each regular team player gets their share
+            let teamSize = team.count + (swingManTeamIndex == teamIndex ? 1 : 0)
             for player in team {
-                winnings[player.id, default: 0] += teamWinnings
+                winnings[player.id, default: 0] += teamWinnings / Double(teamSize)
             }
-            if let swingMan = swingMan {
-                winnings[swingMan.id, default: 0] += teamWinnings
+            
+            // If this is the swing man's team, they get their share
+            if let swingMan = swingMan, teamIndex == swingManTeamIndex {
+                winnings[swingMan.id, default: 0] += teamWinnings / Double(teamSize)
             }
         }
         
@@ -868,10 +893,11 @@ public class BetManager: ObservableObject {
         updateAllPlayers()
     }
     
-    public func addAlabamaBet(teams: [[Player]], swingMan: Player? = nil, countingScores: Int, frontNineAmount: Double, backNineAmount: Double, lowBallAmount: Double, perBirdieAmount: Double) {
+    public func addAlabamaBet(teams: [[Player]], swingMan: Player? = nil, swingManTeamIndex: Int? = nil, countingScores: Int, frontNineAmount: Double, backNineAmount: Double, lowBallAmount: Double, perBirdieAmount: Double) {
         let bet = AlabamaBet(
             teams: teams,
             swingMan: swingMan,
+            swingManTeamIndex: swingManTeamIndex,
             countingScores: countingScores,
             frontNineAmount: frontNineAmount,
             backNineAmount: backNineAmount,
@@ -975,6 +1001,69 @@ public class BetManager: ObservableObject {
         }
         
         return totalWinnings
+    }
+
+    public func resetAllBetData() {
+        // Clear all bet-related data
+        playerScores = [:]
+        teeBox = nil
+        
+        // Create new arrays with reset bets
+        individualBets = individualBets.map { bet in
+            IndividualMatchBet(
+                id: bet.id,
+                player1: bet.player1,
+                player2: bet.player2,
+                perHoleAmount: bet.perHoleAmount,
+                perBirdieAmount: bet.perBirdieAmount,
+                pressOn9and18: bet.pressOn9and18
+            )
+        }
+        
+        fourBallBets = fourBallBets.map { bet in
+            FourBallMatchBet(
+                id: bet.id,
+                team1Player1: bet.team1Player1,
+                team1Player2: bet.team1Player2,
+                team2Player1: bet.team2Player1,
+                team2Player2: bet.team2Player2,
+                perHoleAmount: bet.perHoleAmount,
+                perBirdieAmount: bet.perBirdieAmount,
+                pressOn9and18: bet.pressOn9and18
+            )
+        }
+        
+        alabamaBets = alabamaBets.map { bet in
+            AlabamaBet(
+                teams: bet.teams,
+                swingMan: bet.swingMan,
+                swingManTeamIndex: bet.swingManTeamIndex,
+                countingScores: bet.countingScores,
+                frontNineAmount: bet.frontNineAmount,
+                backNineAmount: bet.backNineAmount,
+                lowBallAmount: bet.lowBallAmount,
+                perBirdieAmount: bet.perBirdieAmount
+            )
+        }
+        
+        doDaBets = doDaBets.map { bet in
+            DoDaBet(
+                id: bet.id,
+                isPool: bet.isPool,
+                amount: bet.amount,
+                players: bet.players
+            )
+        }
+        
+        skinsBets = skinsBets.map { bet in
+            SkinsBet(
+                id: bet.id,
+                amount: bet.amount,
+                players: bet.players
+            )
+        }
+        
+        objectWillChange.send()
     }
 }
 

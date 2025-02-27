@@ -15,6 +15,7 @@ struct MyBetsView: View {
     @State private var showNewAlabamaBet = false
     @State private var showNewDoDaBet = false
     @State private var betToEdit: Any? = nil
+    @State private var showBetCreation = false
     
     var allPlayers: [BetComponents.Player] {
         var players = Set<BetComponents.Player>()
@@ -164,39 +165,18 @@ struct MyBetsView: View {
             .navigationTitle("My Bets")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack {
-                        Button(action: {
-                            print("Skins bet tapped directly")
-                            showNewSkinsBet = true
-                        }) {
-                            Image(systemName: "dollarsign.circle")
-                        }
-                        
-                        Menu {
-                            Button(action: { showNewIndividualBet = true }) {
-                                Label("Individual Match", systemImage: "person.2")
-                            }
-                            Button(action: { showNewFourBallBet = true }) {
-                                Label("Four-Ball Match", systemImage: "person.3")
-                            }
-                            Button(action: { showNewAlabamaBet = true }) {
-                                Label("Alabama Game", systemImage: "person.3.sequence")
-                            }
-                            Button(action: { showNewDoDaBet = true }) {
-                                Label("Do-Da", systemImage: "2.circle")
-                            }
-                        } label: {
-                            Image(systemName: "plus")
-                        }
+                    Button(action: {
+                        showNewSkinsBet = false  // Reset this state
+                        showBetCreation = true   // Show bet creation instead
+                    }) {
+                        Image(systemName: "dollarsign.circle")
                     }
                 }
             }
-            .sheet(isPresented: $showNewSkinsBet) {
-                NavigationStack {
-                    SkinsSetupView(editingBet: nil, players: allPlayers, betManager: betManager)
-                        .environmentObject(betManager)
-                        .environmentObject(userProfile)
-                }
+            .sheet(isPresented: $showBetCreation) {
+                BetCreationView()
+                    .environmentObject(betManager)
+                    .environmentObject(userProfile)
             }
             .sheet(isPresented: $showNewIndividualBet) {
                 IndividualMatchSetupView(editingBet: nil, selectedPlayers: allPlayers, betManager: betManager)

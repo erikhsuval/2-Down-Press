@@ -11,6 +11,7 @@ class AlabamaSetupViewModel: ObservableObject {
     @Published var perBirdieAmount = ""
     @Published var swingMan: BetComponents.Player?
     @Published var hasSwingMan = false
+    @Published var swingManTeamIndex: Int?
     
     private let editingBet: AlabamaBet?
     private var betManager: BetManager
@@ -29,6 +30,7 @@ class AlabamaSetupViewModel: ObservableObject {
             self.perBirdieAmount = String(bet.perBirdieAmount)
             self.swingMan = bet.swingMan
             self.hasSwingMan = bet.swingMan != nil
+            self.swingManTeamIndex = bet.swingManTeamIndex
         } else {
             self.teams = Array(repeating: [], count: numberOfTeams)
         }
@@ -64,6 +66,7 @@ class AlabamaSetupViewModel: ObservableObject {
         betManager.addAlabamaBet(
             teams: teams,
             swingMan: hasSwingMan ? swingMan : nil,
+            swingManTeamIndex: hasSwingMan ? swingManTeamIndex : nil,
             countingScores: countingScores,
             frontNineAmount: alabama,
             backNineAmount: alabama,
@@ -364,14 +367,27 @@ private struct SwingManSection: View {
                 
                 if viewModel.hasSwingMan {
                     if let swingMan = viewModel.swingMan {
-                        HStack {
-                            Text(swingMan.firstName + " " + swingMan.lastName)
-                                .foregroundColor(.primary)
-                            Spacer()
-                            Button("Change") {
-                                showSwingManSelection = true
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text(swingMan.firstName + " " + swingMan.lastName)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Button("Change") {
+                                    showSwingManSelection = true
+                                }
+                                .foregroundColor(.blue)
                             }
-                            .foregroundColor(.blue)
+                            
+                            // Team selection for swing man
+                            Picker("Swing Man Team", selection: Binding(
+                                get: { viewModel.swingManTeamIndex ?? 0 },
+                                set: { viewModel.swingManTeamIndex = $0 }
+                            )) {
+                                ForEach(0..<viewModel.teams.count, id: \.self) { index in
+                                    Text("Team \(index + 1)").tag(index)
+                                }
+                            }
+                            .pickerStyle(.segmented)
                         }
                     } else {
                         Button("Select Swing Man") {
@@ -402,8 +418,11 @@ private struct AmountsSection: View {
             
             VStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Alabama")
+                    Text("Alabama (Front & Back)")
                         .font(.headline)
+                    Text("Amount applies to both front and back nine")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                     QuickAmountSelector(amount: Binding(
                         get: { Double(viewModel.alabamaAmount) ?? 0 },
                         set: { viewModel.alabamaAmount = String($0) }
@@ -411,8 +430,11 @@ private struct AmountsSection: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Low-Ball")
+                    Text("Low-Ball (Front & Back)")
                         .font(.headline)
+                    Text("Amount applies to both front and back nine")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                     QuickAmountSelector(amount: Binding(
                         get: { Double(viewModel.lowBallAmount) ?? 0 },
                         set: { viewModel.lowBallAmount = String($0) }
@@ -422,6 +444,9 @@ private struct AmountsSection: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Birdies")
                         .font(.headline)
+                    Text("Amount per birdie")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                     QuickAmountSelector(amount: Binding(
                         get: { Double(viewModel.perBirdieAmount) ?? 0 },
                         set: { viewModel.perBirdieAmount = String($0) }
