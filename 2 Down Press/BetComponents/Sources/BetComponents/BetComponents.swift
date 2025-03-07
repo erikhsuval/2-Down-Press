@@ -56,6 +56,15 @@ public enum BetType: String, CaseIterable, Identifiable {
     
     public var id: String { rawValue }
     
+    public var isSideBet: Bool {
+        switch self {
+        case .circus, .puttingWithPuff:
+            return true
+        default:
+            return false
+        }
+    }
+    
     public var description: String {
         switch self {
         case .individualMatch:
@@ -71,9 +80,9 @@ public enum BetType: String, CaseIterable, Identifiable {
         case .wolf:
             return "Dynamic team selection on each hole"
         case .circus:
-            return "Special bets for unique shots and achievements"
+            return "Special bets for unique shots and achievements (Side Bet)"
         case .puttingWithPuff:
-            return "Putting for money is normal"
+            return "Putting for money is normal (Side Bet)"
         }
     }
     

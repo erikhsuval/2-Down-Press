@@ -13,6 +13,7 @@ struct BetCreationView: View {
     @State private var showAlabamaSetup = false
     @State private var showDoDaSetup = false
     @State private var showSkinsSetup = false
+    @State private var showPuttingWithPuffSetup = false
     @State private var showMenu = false
     
     // Use all available players instead of just selected ones
@@ -164,6 +165,11 @@ struct BetCreationView: View {
                     .environmentObject(betManager)
             }
         }
+        .sheet(isPresented: $showPuttingWithPuffSetup) {
+            PuttingWithPuffSetupView()
+                .environmentObject(userProfile)
+                .environmentObject(betManager)
+        }
     }
     
     private func handleBetSelection(_ betType: BetType) {
@@ -193,6 +199,8 @@ struct BetCreationView: View {
             case .skins:
                 print("Showing skins setup") // Debug print
                 showSkinsSetup = true
+            case .puttingWithPuff:
+                showPuttingWithPuffSetup = true
             default:
                 break // Other bet types not implemented yet
             }

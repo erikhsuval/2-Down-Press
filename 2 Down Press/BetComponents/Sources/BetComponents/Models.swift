@@ -994,175 +994,136 @@ public struct AcesBet: Identifiable {
     }
 }
 
+// MARK: - CircusBet
+public struct CircusBet: Identifiable {
+    public let id: UUID
+    public let players: [Player]
+    public let amount: Double
+    public let betType: CircusBetType
+    
+    public init(id: UUID = UUID(), players: [Player], amount: Double, betType: CircusBetType) {
+        self.id = id
+        self.players = players
+        self.amount = amount
+        self.betType = betType
+    }
+    
+    public func calculateWinnings(playerScores: [UUID: [String]], teeBox: TeeBox) -> [UUID: Double] {
+        // Implementation will vary based on the specific circus bet type
+        // For now, return empty dictionary as placeholder
+        return [:]
+    }
+}
+
+public enum CircusBetType: String, CaseIterable {
+    case greenieClosest = "Greenie Closest"
+    case greenieOnly = "Greenie Only"
+    case sandieClosest = "Sandie Closest"
+    case sandieOnly = "Sandie Only"
+    case polie = "Polie"
+    case snakeKiller = "Snake Killer"
+    
+    public var description: String {
+        switch self {
+        case .greenieClosest:
+            return "Closest to pin on par 3 and makes par or better"
+        case .greenieOnly:
+            return "Hit green on par 3 and make par or better"
+        case .sandieClosest:
+            return "Closest out of bunker and makes par or better"
+        case .sandieOnly:
+            return "Make par from bunker"
+        case .polie:
+            return "Make a putt over 50 feet"
+        case .snakeKiller:
+            return "Make a putt that kills a snake"
+        }
+    }
+}
+
+// MARK: - PuttingWithPuffBet
+public struct PuttingWithPuffBet: Identifiable {
+    public let id: UUID
+    public let players: Set<BetComponents.Player>
+    public let betAmount: Double
+    public var playerTotals: [UUID: Double]
+    
+    public init(id: UUID = UUID(), players: Set<BetComponents.Player>, betAmount: Double) {
+        self.id = id
+        self.players = players
+        self.betAmount = betAmount
+        self.playerTotals = Dictionary(uniqueKeysWithValues: players.map { ($0.id, 0.0) })
+    }
+    
+    public mutating func recordResult(winners: Set<UUID>) {
+        let winAmount = betAmount * Double(players.count - winners.count)
+        let loseAmount = betAmount * Double(winners.count)
+        
+        for player in players {
+            if winners.contains(player.id) {
+                playerTotals[player.id, default: 0] += winAmount
+            } else {
+                playerTotals[player.id, default: 0] -= loseAmount
+            }
+        }
+    }
+    
+    public func calculateWinnings(playerScores: [UUID: [String]], teeBox: TeeBox) -> [UUID: Double] {
+        // For putting with puff, we just return the current running totals
+        return playerTotals
+    }
+}
+
 public class BetManager: ObservableObject {
     @Published public var individualBets: [IndividualMatchBet] = []
     @Published public var fourBallBets: [FourBallMatchBet] = []
     @Published public var alabamaBets: [AlabamaBet] = []
     @Published public var doDaBets: [DoDaBet] = []
     @Published public var skinsBets: [SkinsBet] = []
-    @Published public var acesBets: [AcesBet] = []
+    @Published public var circusBets: [CircusBet] = []
+    @Published public var puttingWithPuffBets: [PuttingWithPuffBet] = []
     @Published public var playerScores: [UUID: [String]] = [:]
     @Published public var teeBox: TeeBox?
-    @Published public var allPlayers: [Player] = []
     
-    public init() {
-        updateAllPlayers()
-    }
+    public init() {}
     
-    public func updateAllPlayers() {
+    public var allPlayers: [Player] {
         var players = Set<Player>()
+        
+        // Add players from regular bets
         individualBets.forEach { bet in
             players.insert(bet.player1)
             players.insert(bet.player2)
         }
+        
         fourBallBets.forEach { bet in
             players.insert(bet.team1Player1)
             players.insert(bet.team1Player2)
             players.insert(bet.team2Player1)
             players.insert(bet.team2Player2)
         }
+        
         alabamaBets.forEach { bet in
             bet.teams.forEach { team in
                 players.formUnion(team)
             }
+            if let swingMan = bet.swingMan {
+                players.insert(swingMan)
+            }
         }
+        
         doDaBets.forEach { bet in
             players.formUnion(bet.players)
         }
+        
         skinsBets.forEach { bet in
             players.formUnion(bet.players)
         }
-        allPlayers = Array(players).sorted { $0.firstName < $1.firstName }
-    }
-    
-    public func updateScoresAndTeeBox(_ scores: [UUID: [String]], _ teeBox: TeeBox) {
-        self.playerScores = scores
-        self.teeBox = teeBox
         
-        for index in self.individualBets.indices {
-            self.individualBets[index].playerScores = scores
-            self.individualBets[index].teeBox = teeBox
-        }
-        
-        for index in self.fourBallBets.indices {
-            self.fourBallBets[index].playerScores = scores
-            self.fourBallBets[index].teeBox = teeBox
-        }
-        
-        for index in self.alabamaBets.indices {
-            self.alabamaBets[index].playerScores = scores
-            self.alabamaBets[index].teeBox = teeBox
-        }
-        
-        for index in self.doDaBets.indices {
-            self.doDaBets[index].playerScores = scores
-            self.doDaBets[index].teeBox = teeBox
-        }
-        
-        for index in self.skinsBets.indices {
-            self.skinsBets[index].playerScores = scores
-            self.skinsBets[index].teeBox = teeBox
-        }
+        return Array(players)
     }
     
-    public func addAcesBet(amount: Double, players: [Player]) {
-        let bet = AcesBet(
-            id: UUID(),
-            amount: amount,
-            players: players
-        )
-        acesBets.append(bet)
-    }
-    
-    public func deleteAlabamaBet(_ bet: AlabamaBet) {
-        alabamaBets.removeAll { $0.id == bet.id }
-        updateAllPlayers()
-    }
-    
-    public func deleteIndividualBet(_ bet: IndividualMatchBet) {
-        individualBets.removeAll { $0.id == bet.id }
-        updateAllPlayers()
-    }
-    
-    public func deleteFourBallBet(_ bet: FourBallMatchBet) {
-        fourBallBets.removeAll { $0.id == bet.id }
-        updateAllPlayers()
-    }
-    
-    public func deleteSkinsBet(_ bet: SkinsBet) {
-        skinsBets.removeAll { $0.id == bet.id }
-        updateAllPlayers()
-    }
-    
-    public func deleteDoDaBet(_ bet: DoDaBet) {
-        doDaBets.removeAll { $0.id == bet.id }
-        updateAllPlayers()
-    }
-    
-    public func addAlabamaBet(teams: [[Player]], swingMan: Player? = nil, swingManTeamIndex: Int? = nil, countingScores: Int, frontNineAmount: Double, backNineAmount: Double, lowBallAmount: Double, perBirdieAmount: Double) {
-        let bet = AlabamaBet(
-            teams: teams,
-            swingMan: swingMan,
-            swingManTeamIndex: swingManTeamIndex,
-            countingScores: countingScores,
-            frontNineAmount: frontNineAmount,
-            backNineAmount: backNineAmount,
-            lowBallAmount: lowBallAmount,
-            perBirdieAmount: perBirdieAmount
-        )
-        alabamaBets.append(bet)
-        updateAllPlayers()
-    }
-
-    public func addDoDaBet(isPool: Bool, amount: Double, players: [Player]) {
-        let bet = DoDaBet(
-            id: UUID(),
-            isPool: isPool,
-            amount: amount,
-            players: players
-        )
-        doDaBets.append(bet)
-        updateAllPlayers()
-    }
-
-    public func addSkinsBet(amount: Double, players: [Player]) {
-        let bet = SkinsBet(
-            id: UUID(),
-            amount: amount,
-            players: players
-        )
-        skinsBets.append(bet)
-        updateAllPlayers()
-    }
-
-    public func addFourBallBet(team1Player1: Player, team1Player2: Player, team2Player1: Player, team2Player2: Player, perHoleAmount: Double, perBirdieAmount: Double, pressOn9and18: Bool) {
-        let bet = FourBallMatchBet(
-            id: UUID(),
-            team1Player1: team1Player1,
-            team1Player2: team1Player2,
-            team2Player1: team2Player1,
-            team2Player2: team2Player2,
-            perHoleAmount: perHoleAmount,
-            perBirdieAmount: perBirdieAmount,
-            pressOn9and18: pressOn9and18
-        )
-        fourBallBets.append(bet)
-        updateAllPlayers()
-    }
-
-    public func addIndividualBet(player1: Player, player2: Player, perHoleAmount: Double, perBirdieAmount: Double, pressOn9and18: Bool) {
-        let bet = IndividualMatchBet(
-            id: UUID(),
-            player1: player1,
-            player2: player2,
-            perHoleAmount: perHoleAmount,
-            perBirdieAmount: perBirdieAmount,
-            pressOn9and18: pressOn9and18
-        )
-        individualBets.append(bet)
-        updateAllPlayers()
-    }
-
+    // Calculate winnings for main sheet (excluding side bets)
     public func calculateTotalWinnings(player: Player, playerScores: [UUID: [String]], teeBox: TeeBox) -> Double {
         var totalWinnings = 0.0
         
@@ -1204,66 +1165,142 @@ public class BetManager: ObservableObject {
         return totalWinnings.rounded(to: 2)
     }
     
-    public func resetAllBetData() {
-        // Clear all bet-related data
-        playerScores = [:]
-        teeBox = nil
+    // Calculate winnings for side bets only
+    public func calculateSideBetWinnings(player: Player, playerScores: [UUID: [String]], teeBox: TeeBox) -> Double {
+        var totalSideBetWinnings = 0.0
         
-        // Create new arrays with reset bets
-        individualBets = individualBets.map { bet in
-            IndividualMatchBet(
-                id: bet.id,
-                player1: bet.player1,
-                player2: bet.player2,
-                perHoleAmount: bet.perHoleAmount,
-                perBirdieAmount: bet.perBirdieAmount,
-                pressOn9and18: bet.pressOn9and18
-            )
+        // Calculate circus bet winnings
+        for bet in circusBets where bet.players.contains(where: { $0.id == player.id }) {
+            if let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)[player.id] {
+                totalSideBetWinnings += winnings
+            }
         }
         
-        fourBallBets = fourBallBets.map { bet in
-            FourBallMatchBet(
-                id: bet.id,
-                team1Player1: bet.team1Player1,
-                team1Player2: bet.team1Player2,
-                team2Player1: bet.team2Player1,
-                team2Player2: bet.team2Player2,
-                perHoleAmount: bet.perHoleAmount,
-                perBirdieAmount: bet.perBirdieAmount,
-                pressOn9and18: bet.pressOn9and18
-            )
+        // Calculate putting with puff winnings
+        for bet in puttingWithPuffBets where bet.players.contains(where: { $0.id == player.id }) {
+            if let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)[player.id] {
+                totalSideBetWinnings += winnings
+            }
         }
         
-        alabamaBets = alabamaBets.map { bet in
-            AlabamaBet(
-                teams: bet.teams,
-                swingMan: bet.swingMan,
-                swingManTeamIndex: bet.swingManTeamIndex,
-                countingScores: bet.countingScores,
-                frontNineAmount: bet.frontNineAmount,
-                backNineAmount: bet.backNineAmount,
-                lowBallAmount: bet.lowBallAmount,
-                perBirdieAmount: bet.perBirdieAmount
-            )
+        return totalSideBetWinnings.rounded(to: 2)
+    }
+    
+    public func updateScoresAndTeeBox(_ scores: [UUID: [String]], _ newTeeBox: TeeBox) {
+        playerScores = scores
+        teeBox = newTeeBox
+        objectWillChange.send()
+    }
+    
+    // MARK: - Bet Management Functions
+    
+    public func addIndividualBet(player1: Player, player2: Player, perHoleAmount: Double, perBirdieAmount: Double, pressOn9and18: Bool) {
+        let bet = IndividualMatchBet(
+            id: UUID(),
+            player1: player1,
+            player2: player2,
+            perHoleAmount: perHoleAmount,
+            perBirdieAmount: perBirdieAmount,
+            pressOn9and18: pressOn9and18
+        )
+        individualBets.append(bet)
+        objectWillChange.send()
+    }
+    
+    public func addFourBallBet(team1Player1: Player, team1Player2: Player, team2Player1: Player, team2Player2: Player, perHoleAmount: Double, perBirdieAmount: Double, pressOn9and18: Bool) {
+        let bet = FourBallMatchBet(
+            id: UUID(),
+            team1Player1: team1Player1,
+            team1Player2: team1Player2,
+            team2Player1: team2Player1,
+            team2Player2: team2Player2,
+            perHoleAmount: perHoleAmount,
+            perBirdieAmount: perBirdieAmount,
+            pressOn9and18: pressOn9and18
+        )
+        fourBallBets.append(bet)
+        objectWillChange.send()
+    }
+    
+    public func deleteIndividualBet(_ bet: IndividualMatchBet) {
+        individualBets.removeAll { $0.id == bet.id }
+        objectWillChange.send()
+    }
+    
+    public func deleteFourBallBet(_ bet: FourBallMatchBet) {
+        fourBallBets.removeAll { $0.id == bet.id }
+        objectWillChange.send()
+    }
+    
+    public func deleteAlabamaBet(_ bet: AlabamaBet) {
+        alabamaBets.removeAll { $0.id == bet.id }
+        objectWillChange.send()
+    }
+    
+    public func deleteSkinsBet(_ bet: SkinsBet) {
+        skinsBets.removeAll { $0.id == bet.id }
+        objectWillChange.send()
+    }
+    
+    public func deleteDoDaBet(_ bet: DoDaBet) {
+        doDaBets.removeAll { $0.id == bet.id }
+        objectWillChange.send()
+    }
+    
+    public func addSkinsBet(amount: Double, players: [Player]) {
+        let bet = SkinsBet(
+            id: UUID(),
+            amount: amount,
+            players: players
+        )
+        skinsBets.append(bet)
+        objectWillChange.send()
+    }
+    
+    public func addDoDaBet(isPool: Bool, amount: Double, players: [Player]) {
+        let bet = DoDaBet(
+            id: UUID(),
+            isPool: isPool,
+            amount: amount,
+            players: players
+        )
+        doDaBets.append(bet)
+        objectWillChange.send()
+    }
+    
+    public func addAlabamaBet(teams: [[Player]], swingMan: Player? = nil, swingManTeamIndex: Int? = nil, countingScores: Int, frontNineAmount: Double, backNineAmount: Double, lowBallAmount: Double, perBirdieAmount: Double) {
+        let bet = AlabamaBet(
+            teams: teams,
+            swingMan: swingMan,
+            swingManTeamIndex: swingManTeamIndex,
+            countingScores: countingScores,
+            frontNineAmount: frontNineAmount,
+            backNineAmount: backNineAmount,
+            lowBallAmount: lowBallAmount,
+            perBirdieAmount: perBirdieAmount
+        )
+        alabamaBets.append(bet)
+        objectWillChange.send()
+    }
+    
+    public func addPuttingWithPuffBet(players: Set<BetComponents.Player>, betAmount: Double) {
+        let bet = PuttingWithPuffBet(
+            players: players,
+            betAmount: betAmount
+        )
+        puttingWithPuffBets.append(bet)
+        objectWillChange.send()
+    }
+    
+    public func updatePuttingWithPuffBet(_ bet: PuttingWithPuffBet) {
+        if let index = puttingWithPuffBets.firstIndex(where: { $0.id == bet.id }) {
+            puttingWithPuffBets[index] = bet
+            objectWillChange.send()
         }
-        
-        doDaBets = doDaBets.map { bet in
-            DoDaBet(
-                id: bet.id,
-                isPool: bet.isPool,
-                amount: bet.amount,
-                players: bet.players
-            )
-        }
-        
-        skinsBets = skinsBets.map { bet in
-            SkinsBet(
-                id: bet.id,
-                amount: bet.amount,
-                players: bet.players
-            )
-        }
-        
+    }
+    
+    public func deletePuttingWithPuffBet(_ bet: PuttingWithPuffBet) {
+        puttingWithPuffBets.removeAll { $0.id == bet.id }
         objectWillChange.send()
     }
 }

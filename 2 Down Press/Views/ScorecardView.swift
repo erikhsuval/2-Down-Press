@@ -1415,6 +1415,7 @@ struct SideMenuView: View {
     @State private var showMyAccount = false
     @State private var showMyBets = false
     @State private var showTheSheet = false
+    @State private var showSideBets = false
     @EnvironmentObject private var betManager: BetManager
     @EnvironmentObject private var userProfile: UserProfile
     
@@ -1449,6 +1450,14 @@ struct SideMenuView: View {
                         text: "The Sheet",
                         action: {
                             showTheSheet = true
+                        }
+                    )
+                    
+                    MenuButton(
+                        icon: "dollarsign.circle.fill",
+                        text: "Side Bets",
+                        action: {
+                            showSideBets = true
                         }
                     )
                     
@@ -1506,6 +1515,13 @@ struct SideMenuView: View {
                             }
                         }
                     }
+            }
+        }
+        .sheet(isPresented: $showSideBets) {
+            NavigationView {
+                SideBetsView()
+                    .environmentObject(betManager)
+                    .environmentObject(userProfile)
             }
         }
     }
