@@ -51,6 +51,8 @@ public enum BetType: String, CaseIterable, Identifiable {
     case doDas = "Do-Da's"
     case skins = "Skins"
     case wolf = "Wolf"
+    case circus = "Circus Bets"
+    case puttingWithPuff = "Putting with Puff"
     
     public var id: String { rawValue }
     
@@ -68,6 +70,10 @@ public enum BetType: String, CaseIterable, Identifiable {
             return "Individual pot for lowest score on each hole"
         case .wolf:
             return "Dynamic team selection on each hole"
+        case .circus:
+            return "Special bets for unique shots and achievements"
+        case .puttingWithPuff:
+            return "Putting for money is normal"
         }
     }
     
@@ -79,6 +85,8 @@ public enum BetType: String, CaseIterable, Identifiable {
         case .doDas: return "✌️"
         case .skins: return "💰"
         case .wolf: return "🐺"
+        case .circus: return "🎪"
+        case .puttingWithPuff: return "💉"
         }
     }
 }

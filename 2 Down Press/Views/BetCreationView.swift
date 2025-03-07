@@ -49,7 +49,7 @@ struct BetCreationView: View {
                 }
             }
             
-        case .wolf:
+        case .wolf, .circus, .puttingWithPuff:
             // Not implemented yet
             break
             

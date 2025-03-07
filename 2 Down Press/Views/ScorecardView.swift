@@ -1311,7 +1311,7 @@ class PlayerStatsViewModel {
     }
     
     var winnings: Double {
-        betManager.calculateRoundWinnings(
+        betManager.calculateTotalWinnings(
             player: player,
             playerScores: playerScores,
             teeBox: teeBox

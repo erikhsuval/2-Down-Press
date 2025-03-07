@@ -20,13 +20,30 @@ struct TheSheetView: View {
     }
     
     private var totalWinningsAndLosses: (winnings: Double, losses: Double) {
-        playerTotals.reduce((0.0, 0.0)) { result, playerTotal in
+        let totals = playerTotals.reduce((winnings: 0.0, losses: 0.0)) { result, playerTotal in
             if playerTotal.total > 0 {
-                return (result.0 + playerTotal.total, result.1)
+                return (result.winnings + playerTotal.total, result.losses)
             } else {
-                return (result.0, result.1 + abs(playerTotal.total))
+                return (result.winnings, result.losses + abs(playerTotal.total))
             }
         }
+        return (
+            totals.winnings.rounded(to: 2),
+            totals.losses.rounded(to: 2)
+        )
+    }
+    
+    private var hasAlabamaWithSwingMan: Bool {
+        betManager.alabamaBets.contains { bet in
+            bet.swingMan != nil
+        }
+    }
+    
+    private var balanceImbalance: Double? {
+        let (winnings, losses) = totalWinningsAndLosses
+        let difference = winnings - losses
+        // Only show imbalance if it exists and there's an Alabama bet with Swing Man
+        return abs(difference) > 0.01 && hasAlabamaWithSwingMan ? difference : nil
     }
     
     private var totalBalance: Double {
@@ -55,10 +72,19 @@ struct TheSheetView: View {
                 .padding(.top, 8)
                 
                 // Balance Indicator
-                BalanceIndicatorView(
-                    winnings: totalWinningsAndLosses.winnings,
-                    losses: totalWinningsAndLosses.losses
-                )
+                VStack(spacing: 4) {
+                    BalanceIndicatorView(
+                        winnings: totalWinningsAndLosses.winnings,
+                        losses: totalWinningsAndLosses.losses
+                    )
+                    
+                    if let imbalance = balanceImbalance {
+                        Text("($\(String(format: "%.2f", abs(imbalance))) imbalance due to rounding in Alabama bet with Swing Man)")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                            .padding(.bottom, 4)
+                    }
+                }
             }
             .padding(.vertical, 16)
             .background(Color.deepNavyBlue)
@@ -627,205 +653,142 @@ private struct DoDaBreakdown: View {
     }
 }
 
+private extension Double {
+    func rounded(to places: Int) -> Double {
+        let multiplier = pow(10.0, Double(places))
+        return (self * multiplier).rounded() / multiplier
+    }
+}
+
+private struct AlabamaResults {
+    let front9: Double
+    let back9: Double
+    let lowBallFront9: Double
+    let lowBallBack9: Double
+    let birdies: Double
+    
+    var total: Double {
+        (front9 + back9 + lowBallFront9 + lowBallBack9 + birdies).rounded(to: 2)
+    }
+}
+
+private struct AlabamaTeamResultsRow: View {
+    let label: String
+    let amount: Double
+    
+    private var amountText: some View {
+        Text(String(format: "$%.2f", amount))
+            .font(.caption.bold())
+            .foregroundColor(amount >= 0 ? .green : .red)
+    }
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.caption)
+            amountText
+        }
+    }
+}
+
+private struct AlabamaTeamResultsView: View {
+    let bet: AlabamaBet
+    let playerTeamIndex: Int
+    let otherTeamIndex: Int
+    let teamResults: AlabamaResults
+    
+    private var headerView: some View {
+        Text("vs Team \(otherTeamIndex + 1)")
+            .font(.subheadline)
+            .foregroundColor(.gray)
+    }
+    
+    private var resultsView: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            AlabamaTeamResultsRow(label: "Alabama Front 9:", amount: teamResults.front9)
+            AlabamaTeamResultsRow(label: "Alabama Back 9:", amount: teamResults.back9)
+            AlabamaTeamResultsRow(label: "Low Ball Front 9:", amount: teamResults.lowBallFront9)
+            AlabamaTeamResultsRow(label: "Low Ball Back 9:", amount: teamResults.lowBallBack9)
+            AlabamaTeamResultsRow(label: "Birdies:", amount: teamResults.birdies)
+            AlabamaTeamResultsRow(label: "Total:", amount: teamResults.total)
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            headerView
+            resultsView
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct AlabamaTeamHeader: View {
+    @EnvironmentObject private var betManager: BetManager
+    let bet: AlabamaBet
+    let playerTeamIndex: Int
+    let player: BetComponents.Player
+    let teeBox: BetComponents.TeeBox
+    let matchupResults: [AlabamaBet.TeamResults]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Alabama")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Spacer()
+                let netTotal = matchupResults.reduce(0.0) { $0 + $1.total }
+                Text(String(format: "$%.2f", netTotal))
+                    .font(.headline)
+                    .foregroundColor(netTotal >= 0 ? .primaryGreen : .red)
+            }
+            
+            // Show team info
+            HStack {
+                Text(player.id == bet.swingMan?.id ? 
+                    "Swing Man - Team \(playerTeamIndex + 1)" : 
+                    "Team \(playerTeamIndex + 1)")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                Spacer()
+                let teamBirdies = bet.countTeamBirdies(
+                    team: bet.teams[playerTeamIndex],
+                    scores: betManager.playerScores,
+                    teeBox: teeBox,
+                    swingMan: bet.swingMan  // Always include swing man
+                )
+                Text("Total Birdies: \(teamBirdies)")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+            }
+        }
+    }
+}
+
+private struct AlabamaMatchupView: View {
+    let bet: AlabamaBet
+    let playerTeamIndex: Int
+    let otherTeamIndex: Int
+    let teamResults: AlabamaResults
+    
+    var body: some View {
+        AlabamaTeamResultsView(
+            bet: bet,
+            playerTeamIndex: playerTeamIndex,
+            otherTeamIndex: otherTeamIndex,
+            teamResults: teamResults
+        )
+    }
+}
+
 private struct AlabamaBreakdown: View {
     @EnvironmentObject private var betManager: BetManager
     let player: BetComponents.Player
     
-    private func calculateTeamScore(
-        team: [BetComponents.Player],
-        holes: Range<Int>,
-        scores: [UUID: [String]],
-        teeBox: BetComponents.TeeBox,
-        swingMan: BetComponents.Player?
-    ) -> Int {
-        var totalScore = 0
-        for hole in holes {
-            var lowestScore = Int.max
-            for player in team {
-                if let scoreStr = scores[player.id]?[hole],
-                   let score = Int(scoreStr) {
-                    lowestScore = min(lowestScore, score)
-                }
-            }
-            if let swingMan = swingMan,
-               let scoreStr = scores[swingMan.id]?[hole],
-               let score = Int(scoreStr) {
-                lowestScore = min(lowestScore, score)
-            }
-            if lowestScore != Int.max {
-                totalScore += lowestScore
-            }
-        }
-        return totalScore
-    }
-    
-    private func calculateLowBallTotal(
-        team: [BetComponents.Player],
-        holes: Range<Int>,
-        scores: [UUID: [String]],
-        swingMan: BetComponents.Player?
-    ) -> Int {
-        var lowBallWins = 0
-        for hole in holes {
-            var lowestScore = Int.max
-            for player in team {
-                if let scoreStr = scores[player.id]?[hole],
-                   let score = Int(scoreStr) {
-                    lowestScore = min(lowestScore, score)
-                }
-            }
-            if let swingMan = swingMan,
-               let scoreStr = scores[swingMan.id]?[hole],
-               let score = Int(scoreStr) {
-                lowestScore = min(lowestScore, score)
-            }
-            if lowestScore != Int.max {
-                lowBallWins += 1
-            }
-        }
-        return lowBallWins
-    }
-    
-    private func countTeamBirdies(
-        team: [BetComponents.Player],
-        scores: [UUID: [String]],
-        teeBox: BetComponents.TeeBox,
-        swingMan: BetComponents.Player?
-    ) -> Int {
-        var birdieCount = 0
-        for holeIndex in 0..<18 {
-            let par = teeBox.holes[holeIndex].par
-            for player in team {
-                if let scoreStr = scores[player.id]?[holeIndex],
-                   let score = Int(scoreStr),
-                   score < par {
-                    birdieCount += 1
-                }
-            }
-            if let swingMan = swingMan,
-               let scoreStr = scores[swingMan.id]?[holeIndex],
-               let score = Int(scoreStr),
-               score < par {
-                birdieCount += 1
-            }
-        }
-        return birdieCount
-    }
-    
-    private func calculateAlabamaTeamResults(
-        bet: AlabamaBet,
-        playerTeamIndex: Int,
-        otherTeamIndex: Int
-    ) -> (front9: Double, back9: Double, lowBallFront9: Double, lowBallBack9: Double, birdies: Double) {
-        let scores = betManager.playerScores
-        let teeBox = betManager.teeBox ?? .championship
-        
-        // Calculate Alabama front 9
-        let playerTeamFront9 = calculateTeamScore(
-            team: bet.teams[playerTeamIndex],
-            holes: 0..<9,
-            scores: scores,
-            teeBox: teeBox,
-            swingMan: playerTeamIndex == bet.swingManTeamIndex ? bet.swingMan : nil
-        )
-        let otherTeamFront9 = calculateTeamScore(
-            team: bet.teams[otherTeamIndex],
-            holes: 0..<9,
-            scores: scores,
-            teeBox: teeBox,
-            swingMan: otherTeamIndex == bet.swingManTeamIndex ? bet.swingMan : nil
-        )
-        let front9Total = playerTeamFront9 < otherTeamFront9 ? bet.frontNineAmount :
-                         playerTeamFront9 > otherTeamFront9 ? -bet.frontNineAmount : 0
-        
-        // Calculate Alabama back 9
-        let playerTeamBack9 = calculateTeamScore(
-            team: bet.teams[playerTeamIndex],
-            holes: 9..<18,
-            scores: scores,
-            teeBox: teeBox,
-            swingMan: playerTeamIndex == bet.swingManTeamIndex ? bet.swingMan : nil
-        )
-        let otherTeamBack9 = calculateTeamScore(
-            team: bet.teams[otherTeamIndex],
-            holes: 9..<18,
-            scores: scores,
-            teeBox: teeBox,
-            swingMan: otherTeamIndex == bet.swingManTeamIndex ? bet.swingMan : nil
-        )
-        let back9Total = playerTeamBack9 < otherTeamBack9 ? bet.backNineAmount :
-                        playerTeamBack9 > otherTeamBack9 ? -bet.backNineAmount : 0
-        
-        // Calculate Low Ball totals for front and back 9
-        let playerTeamLowBallFront9 = calculateLowBallTotal(
-            team: bet.teams[playerTeamIndex],
-            holes: 0..<9,
-            scores: scores,
-            swingMan: playerTeamIndex == bet.swingManTeamIndex ? bet.swingMan : nil
-        )
-        let otherTeamLowBallFront9 = calculateLowBallTotal(
-            team: bet.teams[otherTeamIndex],
-            holes: 0..<9,
-            scores: scores,
-            swingMan: otherTeamIndex == bet.swingManTeamIndex ? bet.swingMan : nil
-        )
-        
-        let playerTeamLowBallBack9 = calculateLowBallTotal(
-            team: bet.teams[playerTeamIndex],
-            holes: 9..<18,
-            scores: scores,
-            swingMan: playerTeamIndex == bet.swingManTeamIndex ? bet.swingMan : nil
-        )
-        let otherTeamLowBallBack9 = calculateLowBallTotal(
-            team: bet.teams[otherTeamIndex],
-            holes: 9..<18,
-            scores: scores,
-            swingMan: otherTeamIndex == bet.swingManTeamIndex ? bet.swingMan : nil
-        )
-        
-        // Calculate Low Ball results for each nine
-        let lowBallFront9 = playerTeamLowBallFront9 < otherTeamLowBallFront9 ? bet.lowBallAmount :
-                           playerTeamLowBallFront9 > otherTeamLowBallFront9 ? -bet.lowBallAmount : 0
-        
-        let lowBallBack9 = playerTeamLowBallBack9 < otherTeamLowBallBack9 ? bet.lowBallAmount :
-                          playerTeamLowBallBack9 > otherTeamLowBallBack9 ? -bet.lowBallAmount : 0
-        
-        // Calculate birdies
-        let playerTeamBirdies = countTeamBirdies(
-            team: bet.teams[playerTeamIndex],
-            scores: scores,
-            teeBox: teeBox,
-            swingMan: playerTeamIndex == bet.swingManTeamIndex ? bet.swingMan : nil
-        )
-        let otherTeamBirdies = countTeamBirdies(
-            team: bet.teams[otherTeamIndex],
-            scores: scores,
-            teeBox: teeBox,
-            swingMan: otherTeamIndex == bet.swingManTeamIndex ? bet.swingMan : nil
-        )
-        let birdieTotal = Double(playerTeamBirdies - otherTeamBirdies) * bet.perBirdieAmount
-        
-        // Calculate team sizes
-        let playerTeamSize = bet.teams[playerTeamIndex].count + 
-            (bet.swingManTeamIndex == playerTeamIndex ? 1 : 0)
-        let otherTeamSize = bet.teams[otherTeamIndex].count + 
-            (bet.swingManTeamIndex == otherTeamIndex ? 1 : 0)
-        let teamSizeRatio = Double(otherTeamSize) / Double(playerTeamSize)
-        
-        return (
-            front9: front9Total * teamSizeRatio,
-            back9: back9Total * teamSizeRatio,
-            lowBallFront9: lowBallFront9 * teamSizeRatio,
-            lowBallBack9: lowBallBack9 * teamSizeRatio,
-            birdies: birdieTotal * teamSizeRatio
-        )
-    }
-    
     var body: some View {
         let relevantBets = betManager.alabamaBets.filter { bet in
-            bet.teams.contains { team in
-                team.contains { $0.id == player.id }
-            } || bet.swingMan?.id == player.id
+            bet.teams.contains { team in team.contains { $0.id == player.id } } || bet.swingMan?.id == player.id
         }
         
         ForEach(relevantBets, id: \.id) { bet in
@@ -834,31 +797,37 @@ private struct AlabamaBreakdown: View {
                     team.contains { $0.id == player.id }
                 } ?? bet.swingManTeamIndex ?? 0
                 
-                VStack(alignment: .leading, spacing: 8) {
-                    // Add total winnings at the top
-                    HStack {
-                        Text("Alabama")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        Spacer()
-                        let totalWinnings = bet.calculateWinnings(playerScores: betManager.playerScores, teeBox: teeBox)[player.id] ?? 0
-                        Text(String(format: "$%.2f", totalWinnings))
-                            .font(.headline)
-                            .foregroundColor(totalWinnings >= 0 ? .primaryGreen : .red)
+                // Calculate all matchup results first
+                let matchupResults = bet.teams.indices.compactMap { index -> AlabamaBet.TeamResults? in
+                    if index != playerTeamIndex {
+                        return bet.calculateTeamResults(
+                            playerTeamIndex: playerTeamIndex,
+                            otherTeamIndex: index,
+                            scores: betManager.playerScores,
+                            teeBox: teeBox
+                        )
                     }
+                    return nil
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    // Use AlabamaTeamHeader for consistent display
+                    AlabamaTeamHeader(
+                        bet: bet,
+                        playerTeamIndex: playerTeamIndex,
+                        player: player,
+                        teeBox: teeBox,
+                        matchupResults: matchupResults
+                    )
                     
-                    Text(player.id == bet.swingMan?.id ? 
-                        "Swing Man - Team \(playerTeamIndex + 1)" : 
-                        "Team \(playerTeamIndex + 1)")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                    
+                    // Show matchup details
                     ForEach(Array(bet.teams.enumerated()), id: \.offset) { index, team in
                         if index != playerTeamIndex {
-                            let teamResults = calculateAlabamaTeamResults(
-                                bet: bet,
+                            let results = bet.calculateTeamResults(
                                 playerTeamIndex: playerTeamIndex,
-                                otherTeamIndex: index
+                                otherTeamIndex: index,
+                                scores: betManager.playerScores,
+                                teeBox: teeBox
                             )
                             
                             VStack(alignment: .leading, spacing: 4) {
@@ -866,68 +835,16 @@ private struct AlabamaBreakdown: View {
                                     .font(.subheadline)
                                     .foregroundColor(.gray)
                                 
-                                HStack {
-                                    Text("Alabama Front 9:")
-                                        .font(.caption)
-                                    Text(String(format: "$%.2f", teamResults.front9))
-                                        .font(.caption.bold())
-                                        .foregroundColor(teamResults.front9 >= 0 ? .green : .red)
-                                }
-                                
-                                HStack {
-                                    Text("Alabama Back 9:")
-                                        .font(.caption)
-                                    Text(String(format: "$%.2f", teamResults.back9))
-                                        .font(.caption.bold())
-                                        .foregroundColor(teamResults.back9 >= 0 ? .green : .red)
-                                }
-                                
-                                HStack {
-                                    Text("Low Ball Front 9:")
-                                        .font(.caption)
-                                    Text(String(format: "$%.2f", teamResults.lowBallFront9))
-                                        .font(.caption.bold())
-                                        .foregroundColor(teamResults.lowBallFront9 >= 0 ? .green : .red)
-                                }
-                                
-                                HStack {
-                                    Text("Low Ball Back 9:")
-                                        .font(.caption)
-                                    Text(String(format: "$%.2f", teamResults.lowBallBack9))
-                                        .font(.caption.bold())
-                                        .foregroundColor(teamResults.lowBallBack9 >= 0 ? .green : .red)
-                                }
-                                
-                                HStack {
-                                    Text("Birdies:")
-                                        .font(.caption)
-                                    Text(String(format: "$%.2f", teamResults.birdies))
-                                        .font(.caption.bold())
-                                        .foregroundColor(teamResults.birdies >= 0 ? .green : .red)
-                                }
-                                
-                                Divider()
-                                    .padding(.vertical, 4)
-                                
-                                HStack {
-                                    Text("Total:")
-                                        .font(.caption)
-                                    Text(String(format: "$%.2f", teamResults.front9 + teamResults.back9 + 
-                                                               teamResults.lowBallFront9 + teamResults.lowBallBack9 + 
-                                                               teamResults.birdies))
-                                        .font(.caption.bold())
-                                        .foregroundColor((teamResults.front9 + teamResults.back9 + 
-                                                        teamResults.lowBallFront9 + teamResults.lowBallBack9 + 
-                                                        teamResults.birdies) >= 0 ? .green : .red)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    AlabamaTeamResultsRow(label: "Alabama Front 9:", amount: results.front9)
+                                    AlabamaTeamResultsRow(label: "Alabama Back 9:", amount: results.back9)
+                                    AlabamaTeamResultsRow(label: "Low Ball Front 9:", amount: results.lowBallFront9)
+                                    AlabamaTeamResultsRow(label: "Low Ball Back 9:", amount: results.lowBallBack9)
+                                    AlabamaTeamResultsRow(label: "Birdies:", amount: results.birdies)
+                                    AlabamaTeamResultsRow(label: "Total:", amount: results.total)
                                 }
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.white)
-                                    .shadow(color: .black.opacity(0.05), radius: 2)
-                            )
+                            .padding(.vertical, 4)
                         }
                     }
                 }

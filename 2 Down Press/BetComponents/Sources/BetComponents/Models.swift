@@ -498,143 +498,349 @@ public struct AlabamaBet: Identifiable {
         self.perBirdieAmount = perBirdieAmount
     }
     
+    private func calculateTeamScore(
+        team: [Player],
+        holes: Range<Int>,
+        scores: [UUID: [String]],
+        teeBox: TeeBox,
+        swingMan: Player?
+    ) -> Int {
+        var totalScore = 0
+        for hole in holes {
+            var lowestScore = Int.max
+            // Count team members' scores
+            for player in team {
+                if let scoreStr = scores[player.id]?[hole],
+                   let score = Int(scoreStr) {
+                    lowestScore = min(lowestScore, score)
+                }
+            }
+            // Always count swing man's score if present
+            if let swingMan = swingMan,
+               let scoreStr = scores[swingMan.id]?[hole],
+               let score = Int(scoreStr) {
+                lowestScore = min(lowestScore, score)
+            }
+            if lowestScore != Int.max {
+                totalScore += lowestScore
+            }
+        }
+        return totalScore
+    }
+    
+    private func calculateLowBallTotal(
+        team: [Player],
+        holes: Range<Int>,
+        scores: [UUID: [String]],
+        swingMan: Player?
+    ) -> Int {
+        var lowBallWins = 0
+        for hole in holes {
+            var lowestScore = Int.max
+            // Count team members' scores
+            for player in team {
+                if let scoreStr = scores[player.id]?[hole],
+                   let score = Int(scoreStr) {
+                    lowestScore = min(lowestScore, score)
+                }
+            }
+            // Always count swing man's score if present
+            if let swingMan = swingMan,
+               let scoreStr = scores[swingMan.id]?[hole],
+               let score = Int(scoreStr) {
+                lowestScore = min(lowestScore, score)
+            }
+            if lowestScore != Int.max {
+                lowBallWins += 1
+            }
+        }
+        return lowBallWins
+    }
+    
+    public func countTeamBirdies(
+        team: [Player],
+        scores: [UUID: [String]],
+        teeBox: TeeBox,
+        swingMan: Player?
+    ) -> Int {
+        var birdieCount = 0
+        for holeIndex in 0..<18 {
+            let par = teeBox.holes[holeIndex].par
+            // Count team members' birdies
+            for player in team {
+                if let scoreStr = scores[player.id]?[holeIndex],
+                   let score = Int(scoreStr),
+                   score < par {
+                    birdieCount += 1
+                }
+            }
+            // Always count swing man's birdies if present
+            if let swingMan = swingMan,
+               let scoreStr = scores[swingMan.id]?[holeIndex],
+               let score = Int(scoreStr),
+               score < par {
+                birdieCount += 1
+            }
+        }
+        return birdieCount
+    }
+
+    public struct TeamResults {
+        public let front9: Double
+        public let back9: Double
+        public let lowBallFront9: Double
+        public let lowBallBack9: Double
+        public let birdies: Double
+        
+        public init(front9: Double, back9: Double, lowBallFront9: Double, lowBallBack9: Double, birdies: Double) {
+            self.front9 = front9
+            self.back9 = back9
+            self.lowBallFront9 = lowBallFront9
+            self.lowBallBack9 = lowBallBack9
+            self.birdies = birdies
+        }
+        
+        public var total: Double {
+            (front9 + back9 + lowBallFront9 + lowBallBack9 + birdies).rounded(to: 2)
+        }
+    }
+
+    public func calculateTeamResults(
+        playerTeamIndex: Int,
+        otherTeamIndex: Int,
+        scores: [UUID: [String]],
+        teeBox: TeeBox
+    ) -> TeamResults {
+        // Calculate Alabama front 9
+        let playerTeamFront9 = calculateTeamScore(
+            team: teams[playerTeamIndex],
+            holes: 0..<9,
+            scores: scores,
+            teeBox: teeBox,
+            swingMan: swingMan
+        )
+        let otherTeamFront9 = calculateTeamScore(
+            team: teams[otherTeamIndex],
+            holes: 0..<9,
+            scores: scores,
+            teeBox: teeBox,
+            swingMan: swingMan
+        )
+        
+        // Calculate team sizes
+        let playerTeamSize = teams[playerTeamIndex].count + 
+            (swingManTeamIndex == playerTeamIndex ? 1 : 0)
+        let otherTeamSize = teams[otherTeamIndex].count + 
+            (swingManTeamIndex == otherTeamIndex ? 1 : 0)
+        
+        // Calculate front 9 total
+        let front9Total: Double = if playerTeamFront9 < otherTeamFront9 {
+            // Win - if winning team is smaller, they get more per player
+            if playerTeamSize < otherTeamSize {
+                (frontNineAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                frontNineAmount
+            }
+        } else if playerTeamFront9 > otherTeamFront9 {
+            // Loss - if losing team is smaller, they pay more per player
+            if playerTeamSize < otherTeamSize {
+                -(frontNineAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                -frontNineAmount
+            }
+        } else {
+            0
+        }
+        
+        // Calculate Alabama back 9
+        let playerTeamBack9 = calculateTeamScore(
+            team: teams[playerTeamIndex],
+            holes: 9..<18,
+            scores: scores,
+            teeBox: teeBox,
+            swingMan: swingMan
+        )
+        let otherTeamBack9 = calculateTeamScore(
+            team: teams[otherTeamIndex],
+            holes: 9..<18,
+            scores: scores,
+            teeBox: teeBox,
+            swingMan: swingMan
+        )
+        
+        // Calculate back 9 total
+        let back9Total: Double = if playerTeamBack9 < otherTeamBack9 {
+            // Win - if winning team is smaller, they get more per player
+            if playerTeamSize < otherTeamSize {
+                (backNineAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                backNineAmount
+            }
+        } else if playerTeamBack9 > otherTeamBack9 {
+            // Loss - if losing team is smaller, they pay more per player
+            if playerTeamSize < otherTeamSize {
+                -(backNineAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                -backNineAmount
+            }
+        } else {
+            0
+        }
+        
+        // Calculate Low Ball totals
+        let playerTeamLowBallFront9 = calculateLowBallTotal(
+            team: teams[playerTeamIndex],
+            holes: 0..<9,
+            scores: scores,
+            swingMan: swingMan
+        )
+        let otherTeamLowBallFront9 = calculateLowBallTotal(
+            team: teams[otherTeamIndex],
+            holes: 0..<9,
+            scores: scores,
+            swingMan: swingMan
+        )
+        
+        // Calculate front 9 low ball
+        let lowBallFront9: Double = if playerTeamLowBallFront9 < otherTeamLowBallFront9 {
+            // Win - if winning team is smaller, they get more per player
+            if playerTeamSize < otherTeamSize {
+                (lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                lowBallAmount
+            }
+        } else if playerTeamLowBallFront9 > otherTeamLowBallFront9 {
+            // Loss - if losing team is smaller, they pay more per player
+            if playerTeamSize < otherTeamSize {
+                -(lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                -lowBallAmount
+            }
+        } else {
+            0
+        }
+        
+        let playerTeamLowBallBack9 = calculateLowBallTotal(
+            team: teams[playerTeamIndex],
+            holes: 9..<18,
+            scores: scores,
+            swingMan: swingMan
+        )
+        let otherTeamLowBallBack9 = calculateLowBallTotal(
+            team: teams[otherTeamIndex],
+            holes: 9..<18,
+            scores: scores,
+            swingMan: swingMan
+        )
+        
+        // Calculate back 9 low ball
+        let lowBallBack9: Double = if playerTeamLowBallBack9 < otherTeamLowBallBack9 {
+            // Win - if winning team is smaller, they get more per player
+            if playerTeamSize < otherTeamSize {
+                (lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                lowBallAmount
+            }
+        } else if playerTeamLowBallBack9 > otherTeamLowBallBack9 {
+            // Loss - if losing team is smaller, they pay more per player
+            if playerTeamSize < otherTeamSize {
+                -(lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                -lowBallAmount
+            }
+        } else {
+            0
+        }
+        
+        // Calculate birdies
+        let playerTeamBirdies = countTeamBirdies(
+            team: teams[playerTeamIndex],
+            scores: scores,
+            teeBox: teeBox,
+            swingMan: swingMan
+        )
+        let otherTeamBirdies = countTeamBirdies(
+            team: teams[otherTeamIndex],
+            scores: scores,
+            teeBox: teeBox,
+            swingMan: swingMan
+        )
+        
+        let birdieDiff = playerTeamBirdies - otherTeamBirdies
+        let birdieTotal: Double = if birdieDiff > 0 {
+            // Win - if winning team is smaller, they get more per player
+            if playerTeamSize < otherTeamSize {
+                (Double(birdieDiff) * perBirdieAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                Double(birdieDiff) * perBirdieAmount
+            }
+        } else if birdieDiff < 0 {
+            // Loss - if losing team is smaller, they pay more per player
+            if playerTeamSize < otherTeamSize {
+                (Double(birdieDiff) * perBirdieAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                Double(birdieDiff) * perBirdieAmount
+            }
+        } else {
+            0
+        }
+        
+        return TeamResults(
+            front9: front9Total,
+            back9: back9Total,
+            lowBallFront9: lowBallFront9,
+            lowBallBack9: lowBallBack9,
+            birdies: birdieTotal
+        )
+    }
+
     public func calculateWinnings(playerScores: [UUID: [String]], teeBox: TeeBox) -> [UUID: Double] {
         let scores = self.playerScores ?? playerScores
         let teeBoxToUse = self.teeBox ?? teeBox
         var winnings: [UUID: Double] = [:]
         
-        // Track totals for Alabama scoring (best N scores)
-        var frontNineTeamTotals: [Int] = Array(repeating: 0, count: teams.count)
-        var backNineTeamTotals: [Int] = Array(repeating: 0, count: teams.count)
-        var frontNineLowBallTotals: [Int] = Array(repeating: 0, count: teams.count)
-        var backNineLowBallTotals: [Int] = Array(repeating: 0, count: teams.count)
-        var teamBirdies: [Int] = Array(repeating: 0, count: teams.count)
-        
-        // Calculate hole-by-hole totals
-        for holeIndex in 0..<18 {
-            let isFrontNine = holeIndex < 9
-            let par = teeBoxToUse.holes[holeIndex].par
-            
-            // Get swing man's score for this hole if available
-            var swingManScore: Int?
-            var swingManBirdie = false
-            if let swingMan = swingMan,
-               let scoreStr = scores[swingMan.id]?[holeIndex],
-               let score = Int(String(scoreStr)) {
-                swingManScore = score
-                swingManBirdie = score < par
-            }
-            
-            // For each team
-            for (teamIndex, team) in teams.enumerated() {
-                // Get valid scores for this hole
-                var teamScores: [Int] = []
-                for player in team {
-                    if let scoreStr = scores[player.id]?[holeIndex],
-                       let score = Int(String(scoreStr)) {
-                        teamScores.append(score)
-                        // Count birdies
-                        if score < par {
-                            teamBirdies[teamIndex] += 1
-                        }
-                    }
-                }
-                
-                // Add swing man's score if applicable
-                if let swingManScore = swingManScore {
-                    teamScores.append(swingManScore)
-                    if swingManBirdie {
-                        teamBirdies[teamIndex] += 1
-                    }
-                }
-                
-                guard !teamScores.isEmpty else { continue }
-                teamScores.sort()
-                
-                // Alabama scoring (best N scores)
-                let bestNScores = Array(teamScores.prefix(min(countingScores, teamScores.count)))
-                let holeTotal = bestNScores.reduce(0, +)
-                
-                // Low ball (single lowest score)
-                let lowBallScore = teamScores[0]
-                
-                if isFrontNine {
-                    frontNineTeamTotals[teamIndex] += holeTotal
-                    frontNineLowBallTotals[teamIndex] += lowBallScore
-                } else {
-                    backNineTeamTotals[teamIndex] += holeTotal
-                    backNineLowBallTotals[teamIndex] += lowBallScore
-                }
+        // Initialize all players with zero winnings
+        for team in teams {
+            for player in team {
+                winnings[player.id] = 0
             }
         }
+        if let swingMan = swingMan {
+            winnings[swingMan.id] = 0
+        }
         
-        // Calculate team vs team results
+        // Calculate winnings for each team matchup
         for (teamIndex, team) in teams.enumerated() {
-            var teamWinnings = 0.0
-            
-            // Compare against each other team independently
             for otherTeamIndex in 0..<teams.count {
                 if teamIndex == otherTeamIndex { continue }
                 
-                var matchupTotal = 0.0
+                let results = calculateTeamResults(
+                    playerTeamIndex: teamIndex,
+                    otherTeamIndex: otherTeamIndex,
+                    scores: scores,
+                    teeBox: teeBoxToUse
+                )
                 
-                // Front Nine Alabama
-                if frontNineTeamTotals[teamIndex] < frontNineTeamTotals[otherTeamIndex] {
-                    matchupTotal += frontNineAmount
-                } else if frontNineTeamTotals[teamIndex] > frontNineTeamTotals[otherTeamIndex] {
-                    matchupTotal -= frontNineAmount
+                // Add winnings for each player on the team
+                for player in team {
+                    winnings[player.id, default: 0] += results.total
                 }
                 
-                // Back Nine Alabama
-                if backNineTeamTotals[teamIndex] < backNineTeamTotals[otherTeamIndex] {
-                    matchupTotal += backNineAmount
-                } else if backNineTeamTotals[teamIndex] > backNineTeamTotals[otherTeamIndex] {
-                    matchupTotal -= backNineAmount
+                // Add winnings for swing man if applicable
+                if let swingMan = swingMan, swingManTeamIndex == teamIndex {
+                    winnings[swingMan.id, default: 0] += results.total
                 }
-                
-                // Front Nine Low Ball
-                if frontNineLowBallTotals[teamIndex] < frontNineLowBallTotals[otherTeamIndex] {
-                    matchupTotal += lowBallAmount
-                } else if frontNineLowBallTotals[teamIndex] > frontNineLowBallTotals[otherTeamIndex] {
-                    matchupTotal -= lowBallAmount
-                }
-                
-                // Back Nine Low Ball
-                if backNineLowBallTotals[teamIndex] < backNineLowBallTotals[otherTeamIndex] {
-                    matchupTotal += lowBallAmount
-                } else if backNineLowBallTotals[teamIndex] > backNineLowBallTotals[otherTeamIndex] {
-                    matchupTotal -= lowBallAmount
-                }
-                
-                // Birdie differential
-                let birdieDiff = teamBirdies[teamIndex] - teamBirdies[otherTeamIndex]
-                matchupTotal += Double(birdieDiff) * perBirdieAmount
-                
-                // Calculate team size ratio
-                let thisTeamSize = team.count + (swingManTeamIndex == teamIndex ? 1 : 0)
-                let otherTeamSize = teams[otherTeamIndex].count + (swingManTeamIndex == otherTeamIndex ? 1 : 0)
-                let teamSizeRatio = Double(otherTeamSize) / Double(thisTeamSize)
-                
-                // Apply team size ratio to matchup total
-                matchupTotal *= teamSizeRatio
-                
-                // Only add half of the matchup total to avoid double counting
-                teamWinnings += matchupTotal / 2.0
-            }
-            
-            // Each regular team player gets their share
-            let teamSize = team.count + (swingManTeamIndex == teamIndex ? 1 : 0)
-            for player in team {
-                winnings[player.id, default: 0] += teamWinnings / Double(teamSize)
-            }
-            
-            // If this is the swing man's team, they get their share
-            if let swingMan = swingMan, teamIndex == swingManTeamIndex {
-                winnings[swingMan.id, default: 0] += teamWinnings / Double(teamSize)
             }
         }
         
         return winnings
+    }
+}
+
+extension Double {
+    func rounded(to places: Int) -> Double {
+        let multiplier = pow(10.0, Double(places))
+        return (self * multiplier).rounded() / multiplier
     }
 }
 
@@ -957,7 +1163,7 @@ public class BetManager: ObservableObject {
         updateAllPlayers()
     }
 
-    public func calculateRoundWinnings(player: Player, playerScores: [UUID: [String]], teeBox: TeeBox) -> Double {
+    public func calculateTotalWinnings(player: Player, playerScores: [UUID: [String]], teeBox: TeeBox) -> Double {
         var totalWinnings = 0.0
         
         // Calculate individual match winnings
@@ -987,22 +1193,17 @@ public class BetManager: ObservableObject {
             }
         }
         
-        return totalWinnings
-    }
-    
-    public func calculateTotalWinnings(player: Player, playerScores: [UUID: [String]], teeBox: TeeBox) -> Double {
-        var totalWinnings = calculateRoundWinnings(player: player, playerScores: playerScores, teeBox: teeBox)
-        
-        // Add Alabama bet winnings
+        // Calculate Alabama bet winnings
         for bet in alabamaBets {
             if let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)[player.id] {
                 totalWinnings += winnings
             }
         }
         
-        return totalWinnings
+        // Round only once at the very end
+        return totalWinnings.rounded(to: 2)
     }
-
+    
     public func resetAllBetData() {
         // Clear all bet-related data
         playerScores = [:]
