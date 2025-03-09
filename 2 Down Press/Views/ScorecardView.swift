@@ -1,5 +1,14 @@
 import SwiftUI
 import BetComponents
+import AVFoundation
+import CoreImage.CIFilterBuiltins
+import CodeScanner
+
+private extension View {
+    func standardHorizontalPadding() -> some View {
+        self.padding(.horizontal, 16)
+    }
+}
 
 struct ScorecardView: View {
     let course: GolfCourse
@@ -14,11 +23,16 @@ struct ScorecardView: View {
     @State private var timer: Timer?
     @State private var isTimerRunning = false
     @State private var hasStartedRound = false
-    @State private var showTestScoresButton = true  // Set to false before release
     @EnvironmentObject private var userProfile: UserProfile
     @EnvironmentObject private var betManager: BetManager
+    @EnvironmentObject private var groupManager: GroupManager
     @GestureState private var dragOffset: CGFloat = 0
     @State private var selectedPlayers: [BetComponents.Player] = []
+    @State private var expandedPlayers: Set<UUID> = []
+    @State private var showPostConfirmation = false
+    @State private var showUnpostConfirmation = false
+    @State private var showPostAnimation = false
+    @State private var isPosted = false
     
     private let maxTimerDuration: TimeInterval = 6 * 60 * 60 // 6 hours in seconds
     
@@ -70,37 +84,60 @@ struct ScorecardView: View {
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
     
-    var body: some View {
-        VStack(spacing: 0) {
-            ScorecardHeaderView(
-                course: course,
-                showMenu: $showMenu,
-                showPlayerSelection: $showPlayerSelection,
-                showTestScoresButton: showTestScoresButton,
-                populateTestScores: populateTestScores
-            )
-            
-            ScorecardNavigationTabs(
-                showLeaderboard: $showLeaderboard,
-                showBetCreation: $showBetCreation,
-                selectedGroupPlayers: players,
-                currentPlayerIndex: selectedPlayerIndex
-            )
-            
-            ScorecardContentView(
-                players: players,
-                selectedPlayerIndex: $selectedPlayerIndex,
-                scores: $scores,
-                teeBox: teeBox,
-                dragOffset: _dragOffset,
-                updateScore: updateScore
-            )
-            
-            ScorecardTimerView(
-                formattedTime: formattedTime,
-                isTimerRunning: isTimerRunning,
-                toggleTimer: toggleTimer
-            )
+    public var body: some View {
+        ZStack {
+            VStack(spacing: 0) {
+                ScorecardHeaderView(
+                    course: course,
+                    showMenu: $showMenu,
+                    showPlayerSelection: $showPlayerSelection,
+                    showBetCreation: $showBetCreation,
+                    showLeaderboard: $showLeaderboard
+                )
+                ScorecardContentView(
+                    players: players,
+                    expandedPlayers: $expandedPlayers,
+                    playerScores: scores,
+                    teeBox: teeBox,
+                    betManager: betManager,
+                    updateScore: updateScore
+                )
+                ScorecardFooterView(
+                    players: players,
+                    playerScores: scores,
+                    teeBox: teeBox,
+                    betManager: betManager,
+                    isPosted: $isPosted,
+                    showPostConfirmation: $showPostConfirmation,
+                    showUnpostConfirmation: $showUnpostConfirmation
+                )
+            }
+        }
+        .edgesIgnoringSafeArea(.bottom)
+        .overlay(PostAnimationOverlay(showPostAnimation: $showPostAnimation))
+        .alert("Post Round", isPresented: $showPostConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Post") {
+                // Merge all group scores before posting
+                betManager.mergeGroupScores()
+                
+                // Update scores and teeBox in BetManager
+                betManager.updateScoresAndTeeBox(betManager.playerScores, teeBox)
+                
+                withAnimation {
+                    showPostAnimation = true
+                    showPostConfirmation = false
+                }
+                // Dismiss the animation after 1.5 seconds and return to scorecard
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    withAnimation {
+                        showPostAnimation = false
+                        showPostConfirmation = false
+                    }
+                }
+            }
+        } message: {
+            Text("This will finalize the scorecard and update The Sheet. Continue?")
         }
         .navigationBarBackButtonHidden(true)
         .navigationBarHidden(true)
@@ -126,7 +163,20 @@ struct ScorecardView: View {
                 teeBox: teeBox,
                 players: players,
                 playerScores: scores,
-                currentPlayerIndex: $selectedPlayerIndex
+                currentPlayerIndex: $selectedPlayerIndex,
+                onScoresImported: { importedScores, importedPlayers in
+                    // Update local scores with imported scores
+                    for (playerId, playerScores) in importedScores {
+                        scores[playerId] = playerScores
+                    }
+                    
+                    // Add any new players
+                    for player in importedPlayers {
+                        if !selectedPlayers.contains(where: { $0.id == player.id }) {
+                            selectedPlayers.append(player)
+                        }
+                    }
+                }
             )
         }
         .sheet(isPresented: $showBetCreation) {
@@ -141,10 +191,22 @@ struct ScorecardView: View {
     }
     
     private func updateScore(for player: BetComponents.Player, at index: Int, with score: String) {
+        // Only allow score updates if the player is in the current group
+        guard let currentGroup = groupManager.currentGroup,
+              let currentUser = userProfile.currentUser,
+              currentGroup.contains(where: { $0.id == currentUser.id }) else {
+            return
+        }
+
         var playerScores = scores[player.id] ?? Array(repeating: "", count: 18)
         playerScores[index] = score
         scores[player.id] = playerScores
-        
+
+        // Update group scores in BetManager
+        if let groupIndex = groupManager.currentGroupIndex {
+            betManager.updateGroupScores(scores, forGroup: groupIndex)
+        }
+
         // Start timer when first score is entered
         if !hasStartedRound && !score.isEmpty {
             hasStartedRound = true
@@ -177,15 +239,6 @@ struct ScorecardView: View {
         timer = nil
     }
     
-    private func populateTestScores() {
-        for player in players {
-            if let testScores = TestScoreData.scores[player.firstName] {
-                scores[player.id] = testScores
-            }
-        }
-        selectedPlayerIndex = 0  // Reset to first player
-    }
-    
     private let teamColors: [Color] = [
         Color(red: 0.91, green: 0.3, blue: 0.24),   // Vibrant Red
         Color(red: 0.0, green: 0.48, blue: 0.8),    // Ocean Blue
@@ -194,12 +247,15 @@ struct ScorecardView: View {
     ]
 }
 
-struct ScorecardHeaderView: View {
+private struct ScorecardHeaderView: View {
     let course: GolfCourse
     @Binding var showMenu: Bool
+    @State private var showGroupSetup = false
     @Binding var showPlayerSelection: Bool
-    let showTestScoresButton: Bool
-    let populateTestScores: () -> Void
+    @EnvironmentObject private var groupManager: GroupManager
+    @EnvironmentObject private var userProfile: UserProfile
+    @Binding var showBetCreation: Bool
+    @Binding var showLeaderboard: Bool
     
     var body: some View {
         VStack(spacing: 0) {
@@ -220,9 +276,28 @@ struct ScorecardHeaderView: View {
                         .font(.custom("Avenir-Black", size: 24))
                         .foregroundColor(.white)
                     
-                    Text("Playing from: Black/Blue")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.8))
+                    if let currentGroup = groupManager.currentGroup,
+                       let groupIndex = groupManager.currentGroupIndex {
+                        HStack {
+                            Text("Group \(groupIndex + 1) • \(currentGroup.count) Players")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.8))
+                            Button(action: { showGroupSetup = true }) {
+                                Image(systemName: "pencil.circle")
+                                    .foregroundColor(.white)
+                            }
+                        }
+                    } else {
+                        Button(action: { showGroupSetup = true }) {
+                            Text("Setup Groups")
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 4)
+                                .background(Color.white.opacity(0.2))
+                                .cornerRadius(12)
+                        }
+                    }
                 }
                 
                 Spacer()
@@ -245,168 +320,109 @@ struct ScorecardHeaderView: View {
                 )
             )
             
-            if showTestScoresButton {
-                Button(action: populateTestScores) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 14, weight: .semibold))
-                        Text("Load Test Scores")
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color.blue.opacity(0.8))
-                    .clipShape(Capsule())
-                }
-                .padding(.vertical, 8)
-                .background(Color.primaryGreen.opacity(0.9))
+            // Navigation Tabs
+            ScorecardNavigationTabs(
+                showLeaderboard: $showLeaderboard,
+                showBetCreation: $showBetCreation,
+                selectedGroupPlayers: groupManager.currentGroup ?? [],
+                currentPlayerIndex: 0
+            )
+        }
+        .sheet(isPresented: $showGroupSetup) {
+            NavigationView {
+                GroupSetupView(groupManager: groupManager)
+                    .environmentObject(groupManager)
+                    .environmentObject(userProfile)
             }
         }
     }
 }
 
-struct ScorecardContentView: View {
+private struct ScorecardContentView: View {
     let players: [BetComponents.Player]
-    @Binding var selectedPlayerIndex: Int
-    @Binding var scores: [UUID: [String]]
+    @Binding var expandedPlayers: Set<UUID>
+    let playerScores: [UUID: [String]]
     let teeBox: BetComponents.TeeBox
-    let dragOffset: GestureState<CGFloat>
+    let betManager: BetManager
+    @EnvironmentObject private var groupManager: GroupManager
+    @State private var selectedPlayerIndex = 0
     let updateScore: (BetComponents.Player, Int, String) -> Void
-    @EnvironmentObject private var betManager: BetManager
     
-    var orderedPlayers: [BetComponents.Player] {
-        // First, try to get players from Alabama bets
-        if let alabamaBet = betManager.alabamaBets.first {
-            var orderedPlayers: [BetComponents.Player] = []
-            
-            // Add players team by team
-            for team in alabamaBet.teams {
-                orderedPlayers.append(contentsOf: team)
-            }
-            
-            // Add swing man if present
-            if let swingMan = alabamaBet.swingMan {
-                orderedPlayers.append(swingMan)
-            }
-            
-            // Add any remaining players not in Alabama teams
-            let remainingPlayers = players.filter { player in
-                !orderedPlayers.contains { $0.id == player.id }
-            }
-            orderedPlayers.append(contentsOf: remainingPlayers)
-            
-            return orderedPlayers
+    func playerRows() -> [(player: BetComponents.Player, index: Int)] {
+        Array(players.enumerated()).map { (index, player) in
+            (player: player, index: index)
         }
-        
-        // If no Alabama bets, return original order
-        return players
     }
     
     var body: some View {
-        if !players.isEmpty {
-            ScrollView {
-                VStack(spacing: 16) {
-                    // Player carousel
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(orderedPlayers, id: \.id) { player in
-                                PlayerButton(
-                                    player: player,
-                                    isSelected: orderedPlayers[selectedPlayerIndex].id == player.id,
-                                    teamColor: getTeamColor(for: player)
-                                )
-                                .onTapGesture {
-                                    if let index = orderedPlayers.firstIndex(where: { $0.id == player.id }) {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            selectedPlayerIndex = index
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                    }
-                    .background(Color.primaryGreen.opacity(0.2))
-                    .gesture(
-                        DragGesture()
-                            .updating(dragOffset) { value, state, _ in
-                                state = value.translation.width
-                            }
-                            .onEnded { value in
-                                let threshold: CGFloat = 50
-                                if value.translation.width > threshold && orderedPlayers.count > 1 {
-                                    withAnimation(.easeInOut) {
-                                        selectedPlayerIndex = (selectedPlayerIndex - 1 + orderedPlayers.count) % orderedPlayers.count
-                                    }
-                                } else if value.translation.width < -threshold && orderedPlayers.count > 1 {
-                                    withAnimation(.easeInOut) {
-                                        selectedPlayerIndex = (selectedPlayerIndex + 1) % orderedPlayers.count
-                                    }
-                                }
-                            }
-                    )
-                    
-                    // Tee box info
-                    HStack {
-                        Text("Playing from:")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        Text(teeBox.name)
-                            .font(.headline)
-                            .foregroundColor(.primaryGreen)
-                        Spacer()
-                    }
-                    .padding(.horizontal)
-                    
-                    // Scorecard content
-                    VStack(spacing: 16) {
-                        // Front 9
-                        ScorecardGridView(
-                            holes: Array(teeBox.holes.prefix(9)),
-                            scores: scores[orderedPlayers[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
-                        ) { index, score in
-                            updateScore(orderedPlayers[selectedPlayerIndex], index, score)
-                        }
-                        
-                        // Back 9
-                        ScorecardGridView(
-                            holes: Array(teeBox.holes.suffix(9)),
-                            scores: scores[orderedPlayers[selectedPlayerIndex].id]?.suffix(9).map { String($0) } ?? Array(repeating: "", count: 9)
-                        ) { index, score in
-                            updateScore(orderedPlayers[selectedPlayerIndex], index + 9, score)
-                        }
-                        
-                        // Totals
-                        ScorecarTotalsView(
-                            holes: teeBox.holes,
-                            scores: scores[orderedPlayers[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
+        VStack(spacing: 0) {
+            // Player carousel
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
+                        PlayerButton(
+                            player: player,
+                            isSelected: selectedPlayerIndex == index,
+                            teamColor: getTeamColor(for: player, groupManager: groupManager)
                         )
+                        .onTapGesture {
+                            selectedPlayerIndex = index
+                        }
                     }
-                    .padding(.bottom)
                 }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
             }
-            .onChange(of: selectedPlayerIndex) { oldValue, newValue in
-                // Dismiss keyboard when switching players
-                DispatchQueue.main.async {
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                }
-            }
-        } else {
-            VStack {
-                Text("No Players Added")
-                    .font(.title2)
-                    .foregroundColor(.gray)
-                Text("Tap the + button to add players")
+            .background(Color.primaryGreen.opacity(0.2))
+            
+            // Tee box info
+            HStack {
+                Text("Playing from:")
                     .font(.subheadline)
                     .foregroundColor(.gray)
+                Text(teeBox.name)
+                    .font(.headline)
+                    .foregroundColor(.primaryGreen)
+                Spacer()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal)
+            
+            // Scorecard content
+            VStack(spacing: 16) {
+                // Front 9
+                ScorecardGridView(
+                    holes: Array(teeBox.holes.prefix(9)),
+                    scores: playerScores[players[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
+                ) { index, score in
+                    updateScore(players[selectedPlayerIndex], index, score)
+                }
+                
+                // Back 9
+                ScorecardGridView(
+                    holes: Array(teeBox.holes.suffix(9)),
+                    scores: playerScores[players[selectedPlayerIndex].id]?.suffix(9).map { String($0) } ?? Array(repeating: "", count: 9)
+                ) { index, score in
+                    updateScore(players[selectedPlayerIndex], index + 9, score)
+                }
+                
+                // Totals
+                ScorecarTotalsView(
+                    holes: teeBox.holes,
+                    scores: playerScores[players[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
+                )
+            }
+            .padding(.bottom)
+        }
+        .onChange(of: selectedPlayerIndex) { oldValue, newValue in
+            // Dismiss keyboard when switching players
+            DispatchQueue.main.async {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
         }
     }
     
-    private func getTeamColor(for player: BetComponents.Player) -> Color? {
+    private func getTeamColor(for player: BetComponents.Player, groupManager: GroupManager) -> Color? {
+        // First check Alabama teams
         if let alabamaBet = betManager.alabamaBets.first(where: { bet in
             bet.teams.contains(where: { team in
                 team.contains(where: { $0.id == player.id })
@@ -418,6 +434,13 @@ struct ScorecardContentView: View {
                 }
             }
         }
+        
+        // If no Alabama color, check if player is in current group
+        if let currentGroup = groupManager.currentGroup,
+           currentGroup.contains(where: { $0.id == player.id }) {
+            return .primaryGreen
+        }
+        
         return nil
     }
     
@@ -427,6 +450,105 @@ struct ScorecardContentView: View {
         Color.teamGold,                              // Team Gold
         Color(red: 0.6, green: 0.2, blue: 0.8)      // Royal Purple
     ]
+}
+
+private struct ScorecardFooterView: View {
+    let players: [BetComponents.Player]
+    let playerScores: [UUID: [String]]
+    let teeBox: BetComponents.TeeBox
+    let betManager: BetManager
+    @Binding var isPosted: Bool
+    @Binding var showPostConfirmation: Bool
+    @Binding var showUnpostConfirmation: Bool
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Stats row
+            HStack {
+                let bigWinner = Array(players.enumerated())
+                    .map { (index, player) in
+                        let viewModel = PlayerStatsViewModel(
+                            player: player,
+                            index: index,
+                            playerScores: playerScores,
+                            teeBox: teeBox,
+                            betManager: betManager
+                        )
+                        return (player, viewModel.winnings)
+                    }
+                    .max(by: { $0.1 < $1.1 })
+                
+                if let winner = bigWinner {
+                    Text("Current Big Winner: ")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    Text(winner.0.firstName)
+                        .font(.headline)
+                        .foregroundColor(.teamGold)
+                    Text(String(format: " ($%.0f)", winner.1))
+                        .font(.headline)
+                        .foregroundColor(.teamGold)
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(Color.primaryGreen)
+            
+            // Post/Unpost Buttons
+            HStack(spacing: 20) {
+                Button(action: { showUnpostConfirmation = true }) {
+                    Text("Unpost")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 22)
+                                .fill(Color.red.opacity(0.8))
+                        )
+                }
+                .opacity(isPosted ? 1 : 0.5)
+                .disabled(!isPosted)
+                
+                Button(action: { showPostConfirmation = true }) {
+                    Text("Post")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 22)
+                                .fill(Color.primaryGreen)
+                        )
+                }
+                .opacity(isPosted ? 0.5 : 1)
+                .disabled(isPosted)
+            }
+            .padding()
+            .background(Color.white)
+        }
+    }
+}
+
+private struct PostAnimationOverlay: View {
+    @Binding var showPostAnimation: Bool
+    
+    var body: some View {
+        if showPostAnimation {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+                .overlay(
+                    VStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 60))
+                            .foregroundColor(.green)
+                        Text("Round Posted!")
+                            .font(.title2.bold())
+                            .foregroundColor(.white)
+                    }
+                )
+        }
+    }
 }
 
 struct ScorecardTimerView: View {
@@ -462,240 +584,6 @@ struct ScorecardTimerView: View {
             )
         )
         .shadow(color: .black.opacity(0.1), radius: 5, y: 2)
-    }
-}
-
-// Test score data for development
-struct TestScoreData {
-    static let scores: [String: [String]] = [
-        "Erik": ["4","4","4","3","4","4","4","4","3","3","4","3","4","5","3","4","3","4"],
-        "Jody": ["4","4","5","3","4","5","4","4","3","4","4","4","4","5","3","5","3","4"],
-        "Bryan": ["4","4","5","3","4","4","4","4","4","4","4","4","4","5","3","4","3","5"],
-        "Wade": ["4","4","5","3","4","5","4","3","2","4","4","4","4","5","3","5","2","3"],
-        "Hardy": ["4","4","5","3","4","5","4","4","3","4","4","4","4","4","3","5","3","4"],
-        "Rolf": ["5","5","5","3","4","5","3","4","3","5","5","4","4","5","3","4","3","4"],
-        "Jim": ["4","4","5","3","4","4","5","4","4","4","4","4","4","5","2","6","3","5"],
-        "Chad": ["5","4","5","4","3","5","4","4","3","5","4","4","5","4","3","5","3","4"],
-        "Nate": ["3","5","4","3","5","5","4","4","4","3","5","3","4","6","3","5","3","5"],
-        "Mark": ["4","4","5","3","4","5","4","4","3","4","4","4","4","5","3","5","3","4"],
-        "Darren": ["5","5","6","2","4","4","4","4","3","5","5","5","3","5","2","5","3","4"],
-        "Justin": ["4","6","5","3","5","6","4","6","3","4","6","4","4","6","4","5","5","4"],
-        "Ron": ["4","4","4","3","4","5","5","4","3","4","4","3","4","5","3","6","3","4"],
-        "Clay": ["5","4","5","4","4","5","4","5","5","5","4","4","5","5","3","5","4","4"],
-        "Nick": ["4","4","4","3","4","5","5","4","3","4","4","3","4","5","3","6","3","4"],
-        "Ryan": ["4","4","4","3","4","4","4","3","3","4","4","3","4","5","3","4","3","4"]
-    ]
-}
-
-struct CustomNumberPad: View {
-    @Binding var text: String
-    let onDismiss: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            // Number grid
-            ForEach(0..<3) { row in
-                HStack(spacing: 8) {
-                    ForEach(1...3, id: \.self) { number in
-                        numberButton(String(row * 3 + number))
-                    }
-                }
-            }
-            HStack(spacing: 8) {
-                numberButton("0")
-                Button(action: {
-                    text = "X"
-                }) {
-                    Text("X")
-                        .font(.title2)
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Color.red.opacity(0.2))
-                        .cornerRadius(8)
-                }
-                Button(action: {
-                    text = ""
-                }) {
-                    Image(systemName: "delete.left")
-                        .font(.title2)
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(8)
-                }
-            }
-            Button(action: onDismiss) {
-                Image(systemName: "keyboard.chevron.compact.down")
-                    .font(.title2)
-                    .foregroundColor(.primary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(8)
-            }
-        }
-        .padding()
-        .background(Color.white)
-    }
-    
-    private func numberButton(_ number: String) -> some View {
-        Button(action: {
-            text = number
-        }) {
-            Text(number)
-                .font(.title2)
-                .foregroundColor(.primary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(Color.gray.opacity(0.2))
-                .cornerRadius(8)
-        }
-    }
-}
-
-struct ScoreDisplayView: View {
-    let score: String
-    let par: Int
-    @Binding var scoreText: String
-    @State private var showCustomKeypad = false
-    
-    var scoreInt: Int? {
-        if score == "X" {
-            return par + 4  // X is treated as par + 4
-        }
-        return Int(score)
-    }
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            Button(action: {
-                showCustomKeypad = true
-            }) {
-                if scoreText.isEmpty {
-                    Text("")
-                        .frame(maxWidth: .infinity)
-                        .background(Color.white.opacity(0.95))
-                } else if score == "X" {
-                    Text("X")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.red)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.white.opacity(0.95))
-                } else if let currentScore = Int(score) {
-                    Text("\(currentScore)")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(colorForScore(currentScore))
-                        .frame(maxWidth: .infinity)
-                        .modifier(ScoreDecorationModifier(score: currentScore, par: par))
-                        .background(Color.white.opacity(0.95))
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
-            .background(Color.white.opacity(0.95))
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.primaryGreen.opacity(0.6), lineWidth: 1.5)
-            )
-            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-            .padding(.horizontal, 4)
-            
-            if score == "X" {
-                HStack {
-                    Spacer()
-                    Text("🚫")
-                        .font(.system(size: 16))
-                    Spacer()
-                }
-                .frame(height: 20)
-            } else if let currentScore = Int(score) {
-                HStack {
-                    Spacer()
-                    if currentScore == 1 {
-                        Text("⭐️")
-                            .font(.system(size: 16))
-                            .shadow(color: .yellow.opacity(0.8), radius: 2)
-                    } else if currentScore == 2 {
-                        Text("✌️")
-                            .font(.system(size: 16))
-                            .shadow(color: .green.opacity(0.8), radius: 2)
-                    } else if currentScore > par + 2 {
-                        Text("💩")
-                            .font(.system(size: 16))
-                    }
-                    Spacer()
-                }
-                .frame(height: 20)
-            }
-        }
-        .frame(width: 60)
-        .sheet(isPresented: $showCustomKeypad) {
-            CustomNumberPad(text: $scoreText) {
-                showCustomKeypad = false
-            }
-            .presentationDetents([.height(300)])
-        }
-    }
-    
-    private func colorForScore(_ score: Int) -> Color {
-        if score == 1 { return .yellow }
-        if score < par - 1 { return .orange }
-        if score == par - 1 { return .red }
-        if score == par { return .primaryGreen }
-        return .blue
-    }
-}
-
-struct ScoreDecorationModifier: ViewModifier {
-    let score: Int
-    let par: Int
-    
-    func body(content: Content) -> some View {
-        content.overlay(
-            Group {
-                if score < par - 1 {
-                    // Double circle for eagle or better
-                    ZStack {
-                        Circle()
-                            .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 30, height: 30)
-                        Circle()
-                            .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 36, height: 36)
-                    }
-                } else if score == par - 1 {
-                    // Single circle for birdie
-                    Circle()
-                        .stroke(colorForScore(score), lineWidth: 1.5)
-                        .frame(width: 30, height: 30)
-                } else if score == par + 1 {
-                    // Single square for bogey
-                    Rectangle()
-                        .stroke(colorForScore(score), lineWidth: 1.5)
-                        .frame(width: 30, height: 30)
-                } else if score == par + 2 {
-                    // Double square for double bogey
-                    ZStack {
-                        Rectangle()
-                            .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 30, height: 30)
-                        Rectangle()
-                            .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 36, height: 36)
-                    }
-                }
-            }
-        )
-    }
-    
-    private func colorForScore(_ score: Int) -> Color {
-        if score == 1 || score < par - 1 { return .teamGold }
-        if score == par - 1 { return .red }
-        if score == par { return .primaryGreen }
-        return .blue
     }
 }
 
@@ -783,10 +671,10 @@ struct ScorecardGridView: View {
                         .font(.subheadline.bold())
                         .foregroundColor(.white)
                     
-                    ForEach(Array(holes.enumerated()), id: \.element.id) { index, hole in
+                    ForEach(Array(holes.indices), id: \.self) { index in
                         ScoreDisplayView(
                             score: scores[index],
-                            par: hole.par,
+                            par: holes[index].par,
                             scoreText: Binding(
                                 get: { scores[index] },
                                 set: { onScoreUpdate(index, $0) }
@@ -893,9 +781,19 @@ struct ScorecarTotalsView: View {
 
 struct PlayerSelectionView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var playerManager: PlayerManager
     @Binding var selectedPlayers: [BetComponents.Player]
     @State private var tempSelectedPlayers: Set<UUID> = []
-    @State private var availablePlayers: [BetComponents.Player] = []
+    @State private var showAddPlayer = false
+    @State private var newPlayerFirstName = ""
+    @State private var newPlayerLastName = ""
+    @State private var newPlayerEmail = ""
+    
+    var availablePlayers: [BetComponents.Player] {
+        playerManager.allPlayers.filter { player in
+            !selectedPlayers.contains { $0.id == player.id }
+        }
+    }
     
     var body: some View {
         VStack {
@@ -922,7 +820,7 @@ struct PlayerSelectionView: View {
                 VStack {
                     Text("No Available Players")
                         .font(.headline)
-                    Text("All players have been added to groups")
+                    Text("Add players using the + button")
                         .font(.subheadline)
                         .foregroundColor(.gray)
                 }
@@ -948,27 +846,74 @@ struct PlayerSelectionView: View {
                 }
             }
             
-            Button(action: {
-                let newPlayers = availablePlayers.filter { tempSelectedPlayers.contains($0.id) }
-                selectedPlayers.append(contentsOf: newPlayers)
-                dismiss()
-            }) {
-                Text("Done")
-                    .font(.title3.bold())
+            HStack {
+                Button(action: {
+                    showAddPlayer = true
+                }) {
+                    HStack {
+                        Image(systemName: "person.badge.plus")
+                        Text("Add Player")
+                    }
+                    .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
                     .background(Color.primaryGreen)
                     .cornerRadius(25)
+                }
+                
+                Button(action: {
+                    let newPlayers = availablePlayers.filter { tempSelectedPlayers.contains($0.id) }
+                    selectedPlayers.append(contentsOf: newPlayers)
+                    dismiss()
+                }) {
+                    Text("Done")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.primaryGreen)
+                        .cornerRadius(25)
+                }
             }
             .padding()
         }
         .background(Color.gray.opacity(0.1))
         .onAppear {
-            availablePlayers = MockData.allPlayers.filter { player in
-                !selectedPlayers.contains { $0.id == player.id }
-            }
             tempSelectedPlayers.removeAll()
+        }
+        .sheet(isPresented: $showAddPlayer) {
+            NavigationView {
+                Form {
+                    Section(header: Text("New Player")) {
+                        TextField("First Name", text: $newPlayerFirstName)
+                            .textInputAutocapitalization(.words)
+                        TextField("Last Name", text: $newPlayerLastName)
+                            .textInputAutocapitalization(.words)
+                        TextField("Email (Optional)", text: $newPlayerEmail)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.emailAddress)
+                    }
+                }
+                .navigationTitle("Add Player")
+                .navigationBarItems(
+                    leading: Button("Cancel") {
+                        showAddPlayer = false
+                    },
+                    trailing: Button("Add") {
+                        playerManager.addPlayer(
+                            firstName: newPlayerFirstName,
+                            lastName: newPlayerLastName,
+                            email: newPlayerEmail
+                        )
+                        newPlayerFirstName = ""
+                        newPlayerLastName = ""
+                        newPlayerEmail = ""
+                        showAddPlayer = false
+                    }
+                    .disabled(newPlayerFirstName.isEmpty || newPlayerLastName.isEmpty)
+                )
+            }
         }
     }
 }
@@ -1007,322 +952,360 @@ struct LeaderboardView: View {
     let players: [BetComponents.Player]
     let playerScores: [UUID: [String]]
     @Binding var currentPlayerIndex: Int
+    let onScoresImported: ([UUID: [String]], [BetComponents.Player]) -> Void
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var betManager: BetManager
-    @State private var isPosted = false
+    @EnvironmentObject var groupManager: GroupManager
     @State private var showMenu = false
-    @State private var showPostConfirmation = false
-    @State private var showUnpostConfirmation = false
-    @State private var showPostAnimation = false
+    @State private var showQRCode = false
+    @State private var showQRScanner = false
+    @State private var scannedCode: String?
+    @State private var showImportAlert = false
+    @State private var importedScoreData: ShareableScoreData?
     @State private var expandedPlayers: Set<UUID> = []
+    @State private var showUnpostConfirmation = false
+    @State private var showPostConfirmation = false
+    @State private var showPostAnimation = false
+    @State private var isPosted = false
     
     var body: some View {
-        ZStack {
-            VStack(spacing: 0) {
-                // Header with Menu Button
-                HStack {
-                    Button(action: { showMenu = true }) {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                    }
-                    
-                    Spacer()
-                    
-                    Text("Leaderboard")
-                        .font(.custom("Avenir-Black", size: 28))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 2)
-                    
-                    Spacer()
-                    
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding()
-                .background(Color.primaryGreen)
-                
-                // Column Headers
-                HStack {
-                    Text("Player")
-                        .frame(width: 100, alignment: .leading)
-                    Spacer()
-                    Text("Thru")
-                        .frame(width: 50)
-                    Spacer()
-                    Text("Score")
-                        .frame(width: 60)
-                    Spacer()
-                    Text("Win/Loss")
-                        .frame(width: 70)
-                    Spacer()
-                    Text("Skins")
-                        .frame(width: 50)
-                    Spacer()
-                    Text("DO DAs")
-                        .frame(width: 50)
-                }
-                .font(.subheadline.bold())
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-                .background(Color.gray.opacity(0.1))
-                
-                // Player Rows
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
-                            let viewModel = PlayerStatsViewModel(
-                                player: player,
-                                index: index,
-                                playerScores: playerScores,
-                                teeBox: teeBox,
-                                betManager: betManager
-                            )
-                            let stats = viewModel.stats
-                            let isExpanded = expandedPlayers.contains(player.id)
-                            
-                            PlayerRowView(
-                                player: player,
-                                index: index,
-                                lastHole: stats.lastHole,
-                                score: stats.score,
-                                scoreColor: stats.scoreColor,
-                                winnings: viewModel.winnings,
-                                doDas: stats.doDas,
-                                skins: stats.skins,
-                                isExpanded: isExpanded,
-                                betManager: betManager,
-                                playerScores: playerScores,
-                                teeBox: teeBox,
-                                onExpandToggle: {
-                                    if isExpanded {
-                                        expandedPlayers.remove(player.id)
-                                    } else {
-                                        expandedPlayers.insert(player.id)
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-                
-                // Stats row
-                HStack {
-                    let bigWinner = Array(players.enumerated())
-                        .map { (index, player) in
-                            let viewModel = PlayerStatsViewModel(
-                                player: player,
-                                index: index,
-                                playerScores: playerScores,
-                                teeBox: teeBox,
-                                betManager: betManager
-                            )
-                            return (player, viewModel.winnings)
-                        }
-                        .max(by: { $0.1 < $1.1 })
-                    
-                    if let winner = bigWinner {
-                        Text("Current Big Winner: ")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                        Text(winner.0.firstName)
-                            .font(.headline)
-                            .foregroundColor(.teamGold)
-                        Text(String(format: " ($%.0f)", winner.1))
-                            .font(.headline)
-                            .foregroundColor(.teamGold)
-                    }
-                }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(Color.primaryGreen)
-                
-                // Post/Unpost Buttons
-                HStack(spacing: 20) {
-                    Button(action: { showUnpostConfirmation = true }) {
-                        Text("Unpost")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(
-                                RoundedRectangle(cornerRadius: 22)
-                                    .fill(Color.red.opacity(0.8))
-                            )
-                    }
-                    .opacity(isPosted ? 1 : 0.5)
-                    .disabled(!isPosted)
-                    
-                    Button(action: { showPostConfirmation = true }) {
-                        Text("Post")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(
-                                RoundedRectangle(cornerRadius: 22)
-                                    .fill(Color.primaryGreen)
-                            )
-                    }
-                    .opacity(isPosted ? 0.5 : 1)
-                    .disabled(isPosted)
-                }
-                .padding()
-                .background(Color.white)
-            }
+        VStack(spacing: 0) {
+            LeaderboardHeaderView(
+                showMenu: $showMenu,
+                isGroupLeader: groupManager.isGroupLeader
+            )
             
-            // Side Menu
-            if showMenu {
-                SideMenuView(isShowing: $showMenu, showPlayerList: .constant(false), showFourBallMatchSetup: .constant(false))
-            }
+            LeaderboardContentView(
+                players: players,
+                playerScores: playerScores,
+                teeBox: teeBox,
+                betManager: betManager,
+                expandedPlayers: $expandedPlayers
+            )
+            
+            LeaderboardFooterView(
+                players: players,
+                playerScores: playerScores,
+                teeBox: teeBox,
+                betManager: betManager,
+                isPosted: $isPosted,
+                showPostConfirmation: $showPostConfirmation,
+                showUnpostConfirmation: $showUnpostConfirmation
+            )
         }
-        .overlay {
-            if showPostAnimation {
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-                    .overlay(
-                        VStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 60))
-                                .foregroundColor(.green)
-                            Text("Round Posted!")
-                                .font(.title2.bold())
-                                .foregroundColor(.white)
-                        }
-                    )
-            }
-        }
-        .alert("Post Round", isPresented: $showPostConfirmation) {
+        .alert("Post Scores", isPresented: $showPostConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Post") {
-                // Update scores and teeBox in BetManager
-                betManager.updateScoresAndTeeBox(playerScores, teeBox)
-                
                 withAnimation {
-                    showPostAnimation = true
                     isPosted = true
-                }
-                // Dismiss the animation after 1.5 seconds and return to scorecard
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    withAnimation {
-                        showPostAnimation = false
-                        dismiss() // Return to scorecard view
-                    }
+                    showPostAnimation = true
                 }
             }
         } message: {
-            Text("This will finalize the scorecard and update The Sheet. Continue?")
+            Text("Are you sure you want to post these scores?")
         }
-        .alert("Unpost Round", isPresented: $showUnpostConfirmation) {
+        .alert("Unpost Scores", isPresented: $showUnpostConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Unpost", role: .destructive) {
-                isPosted = false
+                withAnimation {
+                    isPosted = false
+                }
             }
         } message: {
-            Text("This will allow you to make edits to the scorecard. Any changes will update The Sheet when posted again.")
+            Text("Are you sure you want to unpost these scores?")
+        }
+        .sheet(isPresented: $showQRCode) {
+            QRCodeShareView(
+                course: course,
+                teeBox: teeBox,
+                players: players,
+                playerScores: playerScores,
+                groupManager: groupManager
+            )
+        }
+        .sheet(isPresented: $showQRScanner) {
+            QRScannerView(scannedCode: $scannedCode)
+                .ignoresSafeArea()
+        }
+        .onChange(of: scannedCode) { oldValue, newValue in
+            if let code = newValue,
+               let scoreData = ShareableScoreData.fromQRString(code) {
+                importedScoreData = scoreData
+                showImportAlert = true
+            }
+        }
+        .alert("Import Scores", isPresented: $showImportAlert) {
+            Button("Cancel", role: .cancel) {
+                importedScoreData = nil
+            }
+            Button("Import") {
+                if let scoreData = importedScoreData {
+                    importScores(from: scoreData)
+                }
+                importedScoreData = nil
+            }
+        } message: {
+            if let scoreData = importedScoreData {
+                Text("Import scores from \(scoreData.courseName) for \(scoreData.players.count) players?")
+            }
+        }
+    }
+    
+    private func importScores(from scoreData: ShareableScoreData) {
+        // Verify the course and tee box match
+        guard scoreData.courseId == course.id && scoreData.teeBoxName == teeBox.name else {
+            return
+        }
+        
+        var importedScores: [UUID: [String]] = [:]
+        var importedPlayers: [BetComponents.Player] = []
+        
+        // Process imported data
+        for playerData in scoreData.players {
+            let player = BetComponents.Player(
+                id: playerData.id,
+                firstName: playerData.firstName,
+                lastName: playerData.lastName,
+                email: ""
+            )
+            importedPlayers.append(player)
+            importedScores[playerData.id] = playerData.scores
+        }
+        
+        // Notify parent view to update scores and players
+        onScoresImported(importedScores, importedPlayers)
+        
+        // Update group scores in BetManager
+        if let groupIndex = groupManager.currentGroupIndex {
+            betManager.mergeGroupScores()
+            betManager.updateGroupScores(playerScores, forGroup: groupIndex)
         }
     }
 }
 
-class PlayerStatsViewModel {
+private struct LeaderboardHeaderView: View {
+    @Binding var showMenu: Bool
+    let isGroupLeader: Bool
+    @State private var showQRCode = false
+    @State private var showQRScanner = false
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        HStack {
+            Button(action: { showMenu = true }) {
+                Image(systemName: "line.3.horizontal")
+                    .font(.title2)
+                    .foregroundColor(.white)
+            }
+            
+            Spacer()
+            
+            if isGroupLeader {
+                Button(action: { showQRCode = true }) {
+                    Image(systemName: "qrcode")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                }
+                
+                Button(action: { showQRScanner = true }) {
+                    Image(systemName: "qrcode.viewfinder")
+                        .font(.title2)
+                        .foregroundColor(.white)
+                }
+            }
+            
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark")
+                    .font(.title2)
+                    .foregroundColor(.white)
+            }
+        }
+        .standardHorizontalPadding()
+        .padding(.vertical, 10)
+        .background(Color.primaryGreen)
+    }
+}
+
+struct QRCodeShareView: View {
+    let course: GolfCourse
+    let teeBox: BetComponents.TeeBox
+    let players: [BetComponents.Player]
+    let playerScores: [UUID: [String]]
+    let groupManager: GroupManager
+    @Environment(\.dismiss) private var dismiss
+    
+    private var qrCodeImage: UIImage? {
+        guard let currentGroup = groupManager.currentGroup,
+              let groupId = currentGroup.first?.id else {
+            return nil
+        }
+        
+        let scoreData = ShareableScoreData(
+            groupId: groupId,
+            courseId: course.id,
+            courseName: course.name,
+            teeBoxId: UUID(uuidString: "00000000-0000-0000-0000-\(String(format: "%012x", teeBox.name.hashValue))") ?? UUID(),
+            teeBoxName: teeBox.name,
+            timestamp: Date(),
+            players: players.map { player in
+                ShareableScoreData.PlayerData(
+                    id: player.id,
+                    firstName: player.firstName,
+                    lastName: player.lastName,
+                    scores: playerScores[player.id] ?? Array(repeating: "", count: 18)
+                )
+            }
+        )
+        
+        guard let qrString = scoreData.toQRString() else { return nil }
+        return QRCodeUtils.generateQRCode(from: qrString)
+    }
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            Text("Share Scores")
+                .font(.title.bold())
+                .foregroundColor(.primaryGreen)
+            
+            if let qrImage = qrCodeImage {
+                QRCodeView(qrImage: qrImage)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white)
+                            .shadow(color: .black.opacity(0.1), radius: 8)
+                    )
+            } else {
+                Text("Unable to generate QR code")
+                    .foregroundColor(.red)
+            }
+            
+            Text("Have the group leader scan this code\nto import your scores")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.gray)
+            
+            Button(action: { dismiss() }) {
+                Text("Done")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.primaryGreen)
+                    .cornerRadius(25)
+            }
+            .padding(.horizontal)
+        }
+        .padding()
+    }
+}
+
+private struct PlayerStatsViewModel {
     let player: BetComponents.Player
     let index: Int
     let playerScores: [UUID: [String]]
     let teeBox: BetComponents.TeeBox
     let betManager: BetManager
     
-    init(player: BetComponents.Player, index: Int, playerScores: [UUID: [String]], teeBox: BetComponents.TeeBox, betManager: BetManager) {
-        self.player = player
-        self.index = index
-        self.playerScores = playerScores
-        self.teeBox = teeBox
-        self.betManager = betManager
-    }
-    
-    var stats: (lastHole: Int, score: String, scoreColor: Color, doDas: Int, skins: Int) {
-        let scores = playerScores[player.id] ?? []
-        var lastHolePlayed = 0
+    var stats: (lastHole: String, score: String, scoreColor: Color, doDas: Int, skins: Int) {
+        let scores = playerScores[player.id] ?? Array(repeating: "", count: 18)
+        let lastPlayedHole = scores.lastIndex(where: { !$0.isEmpty }) ?? -1
+        let lastHole = lastPlayedHole >= 0 ? "\(lastPlayedHole + 1)" : "-"
+        
         var totalScore = 0
-        var doDaCount = 0
-        var skinsCount = 0
+        var validScores = 0
         
-        // Count skins from skins bets
-        for skinsBet in betManager.skinsBets {
-            if skinsBet.players.contains(where: { $0.id == player.id }) {
-                // Only include players who have scores
-                let activePlayers = skinsBet.players.filter { playerScores.keys.contains($0.id) }
-                
-                // For each hole
-                for holeIndex in 0..<18 {
-                    // Get valid scores for this hole
-                    var holeScores: [(playerId: UUID, score: Int)] = []
-                    for betPlayer in activePlayers {
-                        let scoreStr = playerScores[betPlayer.id]?[holeIndex] ?? ""
-                        if scoreStr == "X" {
-                            holeScores.append((betPlayer.id, teeBox.holes[holeIndex].par + 4))
-                        } else if let score = Int(scoreStr) {
-                            holeScores.append((betPlayer.id, score))
-                        }
-                    }
-                    
-                    // Skip hole if not all players have scores
-                    guard holeScores.count == activePlayers.count else { continue }
-                    
-                    // Find lowest score for the hole
-                    let lowestScore = holeScores.min { $0.score < $1.score }?.score
-                    guard let lowestScore = lowestScore else { continue }
-                    
-                    // Count how many players have the lowest score
-                    let playersWithLowestScore = holeScores.filter { $0.score == lowestScore }
-                    
-                    // If only one player has the lowest score and it's our player, they won this skin
-                    if playersWithLowestScore.count == 1 && playersWithLowestScore[0].playerId == player.id {
-                        skinsCount += 1
-                    }
-                }
-            }
-        }
-
-        for (index, scoreStr) in scores.enumerated() {
-            if !scoreStr.isEmpty {
-                lastHolePlayed = index + 1
-                if scoreStr == "X" {
-                    totalScore += 4  // X adds 4 to the relative to par score
-                } else if let score = Int(scoreStr) {
-                    totalScore += score - teeBox.holes[index].par
-                    if score == 2 {
-                        doDaCount += 1
-                    }
-                }
+        for (index, score) in scores.enumerated() {
+            if let scoreInt = Int(score) {
+                totalScore += scoreInt - teeBox.holes[index].par
+                validScores += 1
             }
         }
         
-        let scoreString = totalScore == 0 ? "E" : (totalScore > 0 ? "+\(totalScore)" : "\(totalScore)")
+        let scoreString = validScores > 0 ? "\(totalScore >= 0 ? "+" : "")\(totalScore)" : "-"
         let scoreColor: Color = {
-            if totalScore == 0 { return .primaryGreen }
-            if totalScore > 0 { return .blue }
-            return .red
+            if validScores == 0 { return .gray }
+            if totalScore < 0 { return .red }
+            if totalScore > 0 { return .black }
+            return .primaryGreen
         }()
         
-        return (lastHolePlayed, scoreString, scoreColor, doDaCount, skinsCount)
+        let doDas = betManager.doDaBets.filter { bet in
+            bet.players.contains { $0.id == player.id }
+        }.flatMap { bet in
+            bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox).filter { $0.key == player.id && $0.value > 0 }
+        }.count
+
+        let skins = betManager.skinsBets.filter { bet in
+            bet.players.contains { $0.id == player.id }
+        }.flatMap { bet in
+            bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox).filter { $0.key == player.id && $0.value > 0 }
+        }.count
+        
+        return (lastHole, scoreString, scoreColor, doDas, skins)
     }
     
     var winnings: Double {
-        betManager.calculateTotalWinnings(
-            player: player,
-            playerScores: playerScores,
-            teeBox: teeBox
-        )
+        var total = 0.0
+        
+        // Individual match bets
+        for bet in betManager.individualBets {
+            let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)
+            if bet.player1.id == player.id {
+                total += winnings
+            } else if bet.player2.id == player.id {
+                total -= winnings
+            }
+        }
+        
+        // Four-ball bets
+        for bet in betManager.fourBallBets {
+            let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)
+            if bet.team1Player1.id == player.id || bet.team1Player2.id == player.id {
+                total += winnings
+            } else if bet.team2Player1.id == player.id || bet.team2Player2.id == player.id {
+                total -= winnings
+            }
+        }
+        
+        // Skins
+        for bet in betManager.skinsBets {
+            if let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)[player.id] {
+                total += winnings
+            }
+        }
+        
+        // DoDas
+        for bet in betManager.doDaBets {
+            if let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)[player.id] {
+                total += winnings
+            }
+        }
+        
+        // Alabama bets
+        for bet in betManager.alabamaBets {
+            if let teamIndex = bet.teams.firstIndex(where: { team in
+                team.contains(where: { $0.id == player.id })
+            }) {
+                for otherTeamIndex in bet.teams.indices where otherTeamIndex != teamIndex {
+                    let results = bet.calculateTeamResults(
+                        playerTeamIndex: teamIndex,
+                        otherTeamIndex: otherTeamIndex,
+                        scores: playerScores,
+                        teeBox: teeBox
+                    )
+                    total += results.total
+                }
+            }
+        }
+        
+        return total
     }
 }
 
-struct PlayerRowView: View {
+private struct PlayerRowView: View {
     let player: BetComponents.Player
     let index: Int
-    let lastHole: Int
+    let lastHole: String
     let score: String
     let scoreColor: Color
     let winnings: Double
@@ -1335,76 +1318,61 @@ struct PlayerRowView: View {
     let onExpandToggle: () -> Void
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Main player row
-            Button(action: onExpandToggle) {
-                HStack {
+        Button(action: onExpandToggle) {
+            HStack {
+                HStack(spacing: 8) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.gray)
+                    
                     Text(player.firstName)
-                        .frame(width: 100, alignment: .leading)
-                    Spacer()
-                    Text("\(lastHole)")
-                        .frame(width: 50)
-                    Spacer()
-                    Text(score)
-                        .foregroundColor(scoreColor)
-                        .frame(width: 60)
-                    Spacer()
-                    Text(String(format: "$%.0f", winnings))
-                        .foregroundColor(winnings >= 0 ? .primaryGreen : .red)
-                        .frame(width: 70)
-                    Spacer()
-                    Text("\(skins)")
-                        .frame(width: 50)
-                    Spacer()
-                    Text("\(doDas)")
-                        .frame(width: 50)
+                        .lineLimit(1)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 12)
-                .background(index % 2 == 0 ? Color.white : Color.primaryGreen.opacity(0.1))
+                .frame(minWidth: 80, maxWidth: .infinity, alignment: .leading)
+                
+                Text(lastHole)
+                    .frame(width: 40)
+                
+                Text(score)
+                    .frame(width: 50)
+                    .foregroundColor(scoreColor)
+                
+                Text(String(format: "$%.0f", winnings))
+                    .frame(width: 65)
+                    .foregroundColor(winnings >= 0 ? .primaryGreen : .red)
+                
+                Text("\(skins)")
+                    .frame(width: 40)
+                
+                Text("\(doDas)")
+                    .frame(width: 40)
             }
-            .foregroundColor(.primary)
-            
-            if isExpanded {
-                PlayerBetDetailsView(
-                    player: player,
-                    betManager: betManager,
-                    playerScores: playerScores,
-                    teeBox: teeBox
-                )
-            }
-            
-            Divider()
+            .standardHorizontalPadding()
+            .padding(.vertical, 10)
+            .background(Color.white)
         }
+        .buttonStyle(.plain)
     }
 }
 
-// Add before PlayerSelectionView
-enum MockData {
-    static let allPlayers = [
-        BetComponents.Player(id: UUID(), firstName: "Jody", lastName: "Moss", email: "jody@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Bryan", lastName: "Crowder", email: "bryan@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Wade", lastName: "House", email: "wade@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Hardy", lastName: "Gordon", email: "hardy@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Rolf", lastName: "Morestead", email: "rolf@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Jim", lastName: "Tonore", email: "jim@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Chad", lastName: "Hill", email: "chad@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Nate", lastName: "Weant", email: "nate@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Mark", lastName: "Sutton", email: "mark@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Darren", lastName: "Sutton", email: "darren@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Justin", lastName: "Tarver", email: "justin@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Ron", lastName: "Shimwell", email: "ron@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Clay", lastName: "Shimwell", email: "clay@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Nick", lastName: "Ellison", email: "nick@example.com"),
-        BetComponents.Player(id: UUID(), firstName: "Ryan", lastName: "Nelson", email: "ryan@example.com")
-    ]
+private struct BetDetailRow: View {
+    let type: String
+    let opponent: String
+    let amount: Double
     
-    static private(set) var availablePlayers = allPlayers
-    
-    static func removeSelectedPlayers(_ players: [BetComponents.Player]) {
-        availablePlayers.removeAll(where: { player in
-            players.contains(where: { $0.id == player.id })
-        })
+    var body: some View {
+        HStack {
+            Text(type)
+                .frame(width: 70, alignment: .leading)
+            Text("vs")
+                .foregroundColor(.gray)
+            Text(opponent)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(String(format: "$%.0f", amount))
+                .frame(width: 65)
+                .foregroundColor(amount >= 0 ? .primaryGreen : .red)
+        }
+        .font(.system(size: 14))
     }
 }
 
@@ -1427,7 +1395,7 @@ struct SideMenuView: View {
                     isShowing = false
                 }
             
-            HStack {
+            HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 20) {
                     MenuButton(
                         icon: "person.circle",
@@ -1472,11 +1440,11 @@ struct SideMenuView: View {
                     
                     Spacer()
                 }
+                .standardHorizontalPadding()
                 .padding(.top, 100)
-                .padding(.horizontal, 20)
-                .frame(width: 280)
+                .frame(width: min(UIScreen.main.bounds.width * 0.85, 280))
                 .background(Color.primaryGreen)
-                .offset(x: isShowing ? 0 : -280)
+                .offset(x: isShowing ? 0 : -UIScreen.main.bounds.width)
                 .animation(.default, value: isShowing)
                 
                 Spacer()
@@ -1492,14 +1460,6 @@ struct SideMenuView: View {
                 MyBetsView()
                     .environmentObject(betManager)
                     .environmentObject(userProfile)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Close") {
-                                showMyBets = false
-                                isShowing = false
-                            }
-                        }
-                    }
             }
         }
         .sheet(isPresented: $showTheSheet) {
@@ -1507,14 +1467,6 @@ struct SideMenuView: View {
                 TheSheetView()
                     .environmentObject(betManager)
                     .environmentObject(userProfile)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Close") {
-                                showTheSheet = false
-                                isShowing = false
-                            }
-                        }
-                    }
             }
         }
         .sheet(isPresented: $showSideBets) {
@@ -1542,15 +1494,11 @@ struct MenuButton: View {
                 Spacer()
             }
             .foregroundColor(.white)
+            .standardHorizontalPadding()
             .padding(.vertical, 15)
-            .padding(.horizontal, 20)
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.white.opacity(0.15))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white.opacity(0.25), lineWidth: 1)
             )
         }
     }
@@ -1560,6 +1508,7 @@ struct PlayerButton: View {
     let player: BetComponents.Player
     let isSelected: Bool
     let teamColor: Color?
+    @EnvironmentObject private var groupManager: GroupManager
     
     var body: some View {
         VStack(spacing: 4) {
@@ -1593,6 +1542,279 @@ struct PlayerButton: View {
                         .fill(isSelected ? Color.primaryGreen.opacity(0.1) : Color.white)
                 )
         )
+    }
+}
+
+struct ScoreDisplayView: View {
+    let score: String
+    let par: Int
+    @Binding var scoreText: String
+    
+    private var scoreColor: Color {
+        guard let scoreValue = Int(score) else { return .white }
+        if scoreValue < par {
+            return .red
+        } else if scoreValue > par {
+            return .blue
+        } else {
+            return .primaryGreen
+        }
+    }
+    
+    var body: some View {
+        TextField("", text: $scoreText)
+            .keyboardType(.numberPad)
+            .multilineTextAlignment(.center)
+            .frame(width: 60)
+            .font(.system(size: 20, weight: .bold))
+            .foregroundColor(scoreColor)
+    }
+}
+
+struct ScoreboardRow: View {
+    let playerName: String
+    let amount: Double
+    let showAnimation: Bool
+    
+    var body: some View {
+        HStack {
+            Text(playerName)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            
+            Spacer()
+            
+            Text(String(format: "$%.0f", amount))
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundColor(amount >= 0 ? .green : .red)
+                .shadow(color: amount >= 0 ? .green.opacity(0.5) : .red.opacity(0.5), radius: showAnimation ? 12 : 8)
+        }
+        .standardHorizontalPadding()
+        .padding(.vertical, 12)
+        .background(Color.black)
+        .overlay(
+            Rectangle()
+                .fill(LinearGradient(
+                    gradient: Gradient(colors: [
+                        .white.opacity(showAnimation ? 0.2 : 0.1),
+                        .clear
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                ))
+        )
+        .scaleEffect(showAnimation ? 1.05 : 1.0)
+        .brightness(showAnimation ? 0.1 : 0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showAnimation)
+    }
+}
+
+// Add QR code views
+struct QRCodeView: View {
+    let qrImage: UIImage
+    
+    var body: some View {
+        Image(uiImage: qrImage)
+            .interpolation(.none)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 200, height: 200)
+    }
+}
+
+struct QRScannerView: View {
+    @Binding var scannedCode: String?
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        CodeScannerView(
+            codeTypes: [.qr],
+            scanMode: .once,
+            showViewfinder: true,
+            simulatedData: "SIMULATED",
+            completion: handleScan
+        )
+        .edgesIgnoringSafeArea(.all)
+    }
+    
+    private func handleScan(result: Result<ScanResult, ScanError>) {
+        switch result {
+        case .success(let result):
+            scannedCode = result.string
+            dismiss()
+        case .failure(let error):
+            print("Scanning failed: \(error.localizedDescription)")
+        }
+    }
+}
+
+struct LeaderboardContentView: View {
+    let players: [BetComponents.Player]
+    let playerScores: [UUID: [String]]
+    let teeBox: BetComponents.TeeBox
+    let betManager: BetManager
+    @Binding var expandedPlayers: Set<UUID>
+    
+    private struct PlayerRow: Identifiable {
+        let player: BetComponents.Player
+        let index: Int
+        var id: UUID { player.id }
+    }
+    
+    private func playerRows() -> [PlayerRow] {
+        Array(players.enumerated()).map { index, player in
+            PlayerRow(player: player, index: index)
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Column Headers
+            HStack {
+                Text("Player")
+                    .frame(minWidth: 80, maxWidth: .infinity, alignment: .leading)
+                Text("Thru")
+                    .frame(width: 40)
+                Text("Score")
+                    .frame(width: 50)
+                Text("Win/Loss")
+                    .frame(width: 65)
+                Text("Skins")
+                    .frame(width: 40)
+                Text("DoDas")
+                    .frame(width: 40)
+            }
+            .standardHorizontalPadding()
+            .padding(.vertical, 10)
+            .background(Color.gray.opacity(0.1))
+            
+            // Player rows
+            ForEach(playerRows()) { item in
+                let viewModel = PlayerStatsViewModel(
+                    player: item.player,
+                    index: item.index,
+                    playerScores: playerScores,
+                    teeBox: teeBox,
+                    betManager: betManager
+                )
+                let stats = viewModel.stats
+                
+                VStack(spacing: 0) {
+                    PlayerRowView(
+                        player: item.player,
+                        index: item.index,
+                        lastHole: stats.lastHole,
+                        score: stats.score,
+                        scoreColor: stats.scoreColor,
+                        winnings: viewModel.winnings,
+                        doDas: stats.doDas,
+                        skins: stats.skins,
+                        isExpanded: expandedPlayers.contains(item.player.id),
+                        betManager: betManager,
+                        playerScores: playerScores,
+                        teeBox: teeBox,
+                        onExpandToggle: {
+                            if expandedPlayers.contains(item.player.id) {
+                                expandedPlayers.remove(item.player.id)
+                            } else {
+                                expandedPlayers.insert(item.player.id)
+                            }
+                        }
+                    )
+                    
+                    if expandedPlayers.contains(item.player.id) {
+                        PlayerBetDetailsView(
+                            player: item.player,
+                            betManager: betManager,
+                            playerScores: playerScores,
+                            teeBox: teeBox
+                        )
+                    }
+                    
+                    Divider()
+                }
+            }
+        }
+    }
+}
+
+private struct LeaderboardFooterView: View {
+    let players: [BetComponents.Player]
+    let playerScores: [UUID: [String]]
+    let teeBox: BetComponents.TeeBox
+    let betManager: BetManager
+    @Binding var isPosted: Bool
+    @Binding var showPostConfirmation: Bool
+    @Binding var showUnpostConfirmation: Bool
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Stats row
+            HStack {
+                let bigWinner = Array(players.enumerated())
+                    .map { (index, player) in
+                        let viewModel = PlayerStatsViewModel(
+                            player: player,
+                            index: index,
+                            playerScores: playerScores,
+                            teeBox: teeBox,
+                            betManager: betManager
+                        )
+                        return (player, viewModel.winnings)
+                    }
+                    .max(by: { $0.1 < $1.1 })
+                
+                if let winner = bigWinner {
+                    Text("Current Big Winner: ")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    Text(winner.0.firstName)
+                        .font(.headline)
+                        .foregroundColor(.teamGold)
+                    Text(String(format: " ($%.0f)", winner.1))
+                        .font(.headline)
+                        .foregroundColor(.teamGold)
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(Color.primaryGreen)
+            
+            // Post/Unpost Buttons
+            HStack(spacing: 20) {
+                Button(action: { showUnpostConfirmation = true }) {
+                    Text("Unpost")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 22)
+                                .fill(Color.red.opacity(0.8))
+                        )
+                }
+                .opacity(isPosted ? 1 : 0.5)
+                .disabled(!isPosted)
+                
+                Button(action: { showPostConfirmation = true }) {
+                    Text("Post")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 22)
+                                .fill(Color.primaryGreen)
+                        )
+                }
+                .opacity(isPosted ? 0.5 : 1)
+                .disabled(isPosted)
+            }
+            .padding()
+            .background(Color.white)
+        }
     }
 }
 

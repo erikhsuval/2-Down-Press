@@ -3,7 +3,7 @@ import BetComponents
 
 struct PlayerBetDetailsView: View {
     let player: BetComponents.Player
-    let betManager: BetComponents.BetManager
+    @ObservedObject var betManager: BetManager
     let playerScores: [UUID: [String]]
     let teeBox: BetComponents.TeeBox
     

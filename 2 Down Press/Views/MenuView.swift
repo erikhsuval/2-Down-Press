@@ -14,6 +14,7 @@ struct MenuView: View {
                     .environmentObject(userProfile))
                 NavigationLink("The Sheet", destination: TheSheetView())
                 NavigationLink("Past Rounds", destination: Text("Past Rounds"))
+                NavigationLink("Manage Players", destination: PlayerManagementView())
                 NavigationLink("Settings", destination: Text("Settings"))
                 NavigationLink("Help", destination: Text("Help"))
                 NavigationLink("Account", destination: Text("Account"))

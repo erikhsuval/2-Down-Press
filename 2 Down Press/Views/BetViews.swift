@@ -271,32 +271,6 @@ struct DoDaBetsSection: View {
     }
 }
 
-struct PlayerSelectionButton: View {
-    let title: String
-    let playerName: String
-    let icon: String
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(title)
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                Text(playerName)
-                    .font(.headline)
-            }
-            Spacer()
-            Image(systemName: icon)
-                .foregroundColor(.gray)
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.gray.opacity(0.3))
-        )
-    }
-}
-
 enum TeamPlayerSelection {
     case team1Player1
     case team1Player2
@@ -312,6 +286,7 @@ struct MultiPlayerSelectionView: View {
     let excludedPlayers: [BetComponents.Player]
     let teamName: String
     let teamColor: Color
+    let isFlexible: Bool
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userProfile: UserProfile
     
@@ -345,9 +320,15 @@ struct MultiPlayerSelectionView: View {
                             if selectedPlayers.contains(where: { $0.id == player.id }) {
                                 Image(systemName: "checkmark")
                                     .foregroundColor(teamColor)
+                            } else if selectedPlayers.count >= requiredCount {
+                                // Show disabled state when max players reached
+                                Text("Max")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
                             }
                         }
                     }
+                    .disabled(!selectedPlayers.contains(where: { $0.id == player.id }) && selectedPlayers.count >= requiredCount)
                 }
             }
             .navigationTitle("Select \(teamName) Players")
@@ -356,12 +337,12 @@ struct MultiPlayerSelectionView: View {
                     dismiss()
                 },
                 trailing: Button("Done") {
-                    if selectedPlayers.count == requiredCount {
+                    if isFlexible ? selectedPlayers.count >= 2 : selectedPlayers.count == requiredCount {
                         onComplete(selectedPlayers)
                         dismiss()
                     }
                 }
-                .disabled(selectedPlayers.count != requiredCount)
+                .disabled(isFlexible ? selectedPlayers.count < 2 : selectedPlayers.count != requiredCount)
             )
         }
     }

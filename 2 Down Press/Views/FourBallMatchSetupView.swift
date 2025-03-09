@@ -113,106 +113,32 @@ struct FourBallMatchSetupView: View {
     
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text("TEAM 1")) {
-                    Button(action: {
-                        currentSelection = .team1Player1
-                        showPlayerSelection = true
-                    }) {
-                        PlayerSelectionButton(
-                            title: "Player 1",
-                            playerName: viewModel.team1Player1?.firstName ?? "Select Player",
-                            icon: "person.fill"
-                        )
-                    }
-                    
-                    Button(action: {
-                        currentSelection = .team1Player2
-                        showPlayerSelection = true
-                    }) {
-                        PlayerSelectionButton(
-                            title: "Player 2",
-                            playerName: viewModel.team1Player2?.firstName ?? "Select Player",
-                            icon: "person.fill"
-                        )
-                    }
-                }
-                
-                Section(header: Text("TEAM 2")) {
-                    Button(action: {
-                        currentSelection = .team2Player1
-                        showPlayerSelection = true
-                    }) {
-                        PlayerSelectionButton(
-                            title: "Player 1",
-                            playerName: viewModel.team2Player1?.firstName ?? "Select Player",
-                            icon: "person.fill"
-                        )
-                    }
-                    
-                    Button(action: {
-                        currentSelection = .team2Player2
-                        showPlayerSelection = true
-                    }) {
-                        PlayerSelectionButton(
-                            title: "Player 2",
-                            playerName: viewModel.team2Player2?.firstName ?? "Select Player",
-                            icon: "person.fill"
-                        )
-                    }
-                }
-                
-                Section(header: Text("BET DETAILS")) {
-                    VStack(spacing: 16) {
-                        // Per Hole Amount
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Per Hole")
-                                .font(.headline)
-                            HStack {
-                                Text("$")
-                                    .font(.headline)
-                                    .foregroundColor(.primaryGreen)
-                                TextField("Amount", text: $viewModel.perHoleAmount)
-                                    .keyboardType(.decimalPad)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.primaryGreen.opacity(0.5), lineWidth: 1)
-                            )
+            List {
+                Group {
+                    TeamSection(
+                        teamNumber: 1,
+                        player1: (viewModel.team1Player1, .team1Player1),
+                        player2: (viewModel.team1Player2, .team1Player2),
+                        onPlayerSelect: { selection in
+                            currentSelection = selection
+                            showPlayerSelection = true
                         }
-                        
-                        // Per Birdie Amount
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Per Birdie")
-                                .font(.headline)
-                            HStack {
-                                Text("$")
-                                    .font(.headline)
-                                    .foregroundColor(.primaryGreen)
-                                TextField("Amount", text: $viewModel.perBirdieAmount)
-                                    .keyboardType(.decimalPad)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.primaryGreen.opacity(0.5), lineWidth: 1)
-                            )
+                    )
+                    
+                    TeamSection(
+                        teamNumber: 2,
+                        player1: (viewModel.team2Player1, .team2Player1),
+                        player2: (viewModel.team2Player2, .team2Player2),
+                        onPlayerSelect: { selection in
+                            currentSelection = selection
+                            showPlayerSelection = true
                         }
-                        
-                        Toggle("Press on 9 & 18", isOn: $viewModel.pressOn9and18)
-                    }
-                    .padding(.vertical, 8)
+                    )
+                    
+                    BetDetailsSection(viewModel: viewModel)
                 }
             }
+            .listStyle(InsetGroupedListStyle())
             .navigationTitle(viewModel.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -256,6 +182,94 @@ struct FourBallMatchSetupView: View {
         }
         .onAppear {
             viewModel.updateBetManager(betManager)
+        }
+    }
+}
+
+// MARK: - Subviews
+
+private struct TeamSection: View {
+    let teamNumber: Int
+    let player1: (BetComponents.Player?, TeamPlayerSelection)
+    let player2: (BetComponents.Player?, TeamPlayerSelection)
+    let onPlayerSelect: (TeamPlayerSelection) -> Void
+    
+    var body: some View {
+        Section("TEAM \(teamNumber)") {
+            Button(action: { onPlayerSelect(player1.1) }) {
+                HStack {
+                    Text("Player 1")
+                        .font(.headline)
+                    Spacer()
+                    Text(player1.0?.firstName ?? "Select Player")
+                        .foregroundColor(.gray)
+                    Image(systemName: "person.fill")
+                        .foregroundColor(.primaryGreen)
+                }
+            }
+            
+            Button(action: { onPlayerSelect(player2.1) }) {
+                HStack {
+                    Text("Player 2")
+                        .font(.headline)
+                    Spacer()
+                    Text(player2.0?.firstName ?? "Select Player")
+                        .foregroundColor(.gray)
+                    Image(systemName: "person.fill")
+                        .foregroundColor(.primaryGreen)
+                }
+            }
+        }
+    }
+}
+
+private struct BetDetailsSection: View {
+    @ObservedObject var viewModel: FourBallMatchSetupViewModel
+    
+    var body: some View {
+        Section("BET DETAILS") {
+            VStack(spacing: 16) {
+                AmountField(
+                    title: "Per Hole",
+                    amount: $viewModel.perHoleAmount
+                )
+                
+                AmountField(
+                    title: "Per Birdie",
+                    amount: $viewModel.perBirdieAmount
+                )
+                
+                Toggle("Press on 9 & 18", isOn: $viewModel.pressOn9and18)
+            }
+            .padding(.vertical, 8)
+        }
+    }
+}
+
+private struct AmountField: View {
+    let title: String
+    @Binding var amount: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
+            HStack {
+                Text("$")
+                    .font(.headline)
+                    .foregroundColor(.primaryGreen)
+                TextField("Amount", text: $amount)
+                    .keyboardType(.decimalPad)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(12)
+            .background(Color.white)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.primaryGreen.opacity(0.5), lineWidth: 1)
+            )
         }
     }
 } 

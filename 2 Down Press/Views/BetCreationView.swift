@@ -1,10 +1,58 @@
 import SwiftUI
 import BetComponents
 
+enum BetType: String, CaseIterable, Identifiable {
+    case individualMatch = "Individual Match"
+    case fourBallMatch = "Four-Ball Match"
+    case alabama = "Alabama"
+    case doDas = "Do-Da's"
+    case skins = "Skins"
+    case wolf = "Wolf"
+    case circus = "Circus"
+    case puttingWithPuff = "Putting with Puff"
+    
+    var id: String { rawValue }
+    
+    var description: String {
+        switch self {
+        case .individualMatch:
+            return "One-on-one match with optional presses"
+        case .fourBallMatch:
+            return "Two vs two better ball match"
+        case .alabama:
+            return "Team vs team with multiple scoring options"
+        case .doDas:
+            return "Pool or per-hole bet for making a 2"
+        case .skins:
+            return "Win holes outright to claim skins"
+        case .wolf:
+            return "Dynamic team selection each hole"
+        case .circus:
+            return "Various side bets and challenges"
+        case .puttingWithPuff:
+            return "Practice green putting games"
+        }
+    }
+    
+    var emoji: String {
+        switch self {
+        case .individualMatch: return "👥"
+        case .fourBallMatch: return "👥"
+        case .alabama: return "🏌️"
+        case .doDas: return "✌️"
+        case .skins: return "💰"
+        case .wolf: return "🐺"
+        case .circus: return "🎪"
+        case .puttingWithPuff: return "💉"
+        }
+    }
+}
+
 struct BetCreationView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userProfile: UserProfile
     @EnvironmentObject var betManager: BetManager
+    @EnvironmentObject var playerManager: PlayerManager
     @State private var selectedBetType: BetType?
     @State private var showAnimation = false
     @State private var animationOffset: CGFloat = 0
@@ -59,8 +107,8 @@ struct BetCreationView: View {
             break
         }
         
-        // Start with all players
-        var availablePlayers = MockData.allPlayers
+        // Start with all players from PlayerManager
+        var availablePlayers = playerManager.allPlayers
         
         // Always include current user if available
         if let currentUser = userProfile.currentUser,
@@ -173,7 +221,6 @@ struct BetCreationView: View {
     }
     
     private func handleBetSelection(_ betType: BetType) {
-        print("Selected bet type: \(betType.rawValue)") // Debug print
         selectedBetType = betType
         
         // Trigger money emoji animation
@@ -197,7 +244,6 @@ struct BetCreationView: View {
             case .doDas:
                 showDoDaSetup = true
             case .skins:
-                print("Showing skins setup") // Debug print
                 showSkinsSetup = true
             case .puttingWithPuff:
                 showPuttingWithPuffSetup = true
@@ -205,5 +251,57 @@ struct BetCreationView: View {
                 break // Other bet types not implemented yet
             }
         }
+    }
+}
+
+struct BetTypeCard: View {
+    let title: String
+    let description: String
+    let imageName: String
+    let action: () -> Void
+    
+    var isImplemented: Bool {
+        // Return false for unimplemented bet types
+        !["Wolf", "Circus"].contains(title)
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Text(imageName)
+                    .font(.system(size: 30))
+                    .foregroundColor(isImplemented ? .primaryGreen : .gray)
+                
+                Text(title)
+                    .font(.headline)
+                    .foregroundColor(isImplemented ? .primary : .gray)
+                
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(isImplemented ? .gray : .gray.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 4)
+                
+                if !isImplemented {
+                    Text("Coming Soon!")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.gray)
+                        )
+                }
+            }
+            .frame(height: 160)
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 15)
+                    .fill(Color.white)
+                    .shadow(color: .black.opacity(0.1), radius: 5)
+            )
+        }
+        .disabled(!isImplemented)
     }
 } 

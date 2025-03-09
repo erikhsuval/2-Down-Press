@@ -1,14 +1,15 @@
 import SwiftUI
 import BetComponents
+import Foundation
 
 class SkinsSetupViewModel: ObservableObject {
     @Published var amount: String = ""
     @Published var selectedPlayerIds: Set<UUID>
-    private let editingBet: SkinsBet?
+    private let editingBet: BetComponents.SkinsBet?
     private let availablePlayers: [BetComponents.Player]
     private var betManager: BetManager
     
-    init(editingBet: SkinsBet? = nil, players: [BetComponents.Player], betManager: BetManager) {
+    init(editingBet: BetComponents.SkinsBet? = nil, players: [BetComponents.Player], betManager: BetManager) {
         self.editingBet = editingBet
         self.availablePlayers = players
         self.betManager = betManager
@@ -76,7 +77,7 @@ struct SkinsSetupView: View {
     @StateObject private var viewModel: SkinsSetupViewModel
     let players: [BetComponents.Player]
     
-    init(editingBet: SkinsBet? = nil, players: [BetComponents.Player], betManager: BetManager) {
+    init(editingBet: BetComponents.SkinsBet? = nil, players: [BetComponents.Player], betManager: BetManager) {
         self.players = players
         _viewModel = StateObject(wrappedValue: SkinsSetupViewModel(editingBet: editingBet, players: players, betManager: betManager))
     }
@@ -177,7 +178,7 @@ private struct PlayersSection: View {
                 .foregroundColor(.gray)
             
             ForEach(players) { player in
-                PlayerRow(player: player, viewModel: viewModel)
+                SkinsPlayerRow(player: player, viewModel: viewModel)
             }
         }
         .padding()
@@ -190,7 +191,7 @@ private struct PlayersSection: View {
     }
 }
 
-private struct PlayerRow: View {
+private struct SkinsPlayerRow: View {
     let player: BetComponents.Player
     @ObservedObject var viewModel: SkinsSetupViewModel
     

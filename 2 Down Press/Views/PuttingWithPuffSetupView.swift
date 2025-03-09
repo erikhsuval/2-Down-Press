@@ -4,12 +4,13 @@ import BetComponents
 struct PuttingWithPuffSetupView: View {
     @EnvironmentObject private var betManager: BetManager
     @EnvironmentObject private var userProfile: UserProfile
+    @EnvironmentObject private var playerManager: PlayerManager
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPlayers: Set<UUID> = []
     @State private var showPuttingSession = false
     
     private var allAvailablePlayers: [BetComponents.Player] {
-        var players = MockData.allPlayers
+        var players = playerManager.allPlayers
         if let currentUser = userProfile.currentUser,
            !players.contains(where: { $0.id == currentUser.id }) {
             players.insert(currentUser, at: 0)

@@ -32,7 +32,7 @@ public struct Player: Identifiable, Hashable, Codable {
     }
 }
 
-public struct HoleInfo: Identifiable {
+public struct HoleInfo: Identifiable, Codable {
     public let id: UUID
     public let number: Int
     public let par: Int
@@ -48,7 +48,7 @@ public struct HoleInfo: Identifiable {
     }
 }
 
-public enum TeeBox: String, CaseIterable {
+public enum TeeBox: String, CaseIterable, Codable {
     case championship = "Championship"
     case black = "Black"
     case blackBlue = "Black/Blue"
@@ -271,7 +271,7 @@ public enum TeeBox: String, CaseIterable {
     ]
 }
 
-public struct IndividualMatchBet: Identifiable {
+public struct IndividualMatchBet: Identifiable, Codable {
     public let id: UUID
     public let player1: Player
     public let player2: Player
@@ -380,7 +380,7 @@ public struct IndividualMatchBet: Identifiable {
     }
 }
 
-public struct FourBallMatchBet: Identifiable {
+public struct FourBallMatchBet: Identifiable, Codable {
     public let id: UUID
     public let team1Player1: Player
     public let team1Player2: Player
@@ -473,7 +473,7 @@ public struct FourBallMatchBet: Identifiable {
     }
 }
 
-public struct AlabamaBet: Identifiable {
+public struct AlabamaBet: Identifiable, Codable {
     public let id: UUID
     public let teams: [[Player]]
     public let swingMan: Player?
@@ -844,7 +844,7 @@ extension Double {
     }
 }
 
-public struct DoDaBet: Identifiable {
+public struct DoDaBet: Identifiable, Codable {
     public let id: UUID
     public let isPool: Bool
     public let amount: Double
@@ -929,7 +929,7 @@ public struct DoDaBet: Identifiable {
     }
 }
 
-public struct SkinsBet: Identifiable {
+public struct SkinsBet: Identifiable, Codable {
     public let id: UUID
     public let amount: Double
     public let players: [Player]
@@ -995,7 +995,7 @@ public struct AcesBet: Identifiable {
 }
 
 // MARK: - CircusBet
-public struct CircusBet: Identifiable {
+public struct CircusBet: Identifiable, Codable {
     public let id: UUID
     public let players: [Player]
     public let amount: Double
@@ -1015,13 +1015,14 @@ public struct CircusBet: Identifiable {
     }
 }
 
-public enum CircusBetType: String, CaseIterable {
+public enum CircusBetType: String, CaseIterable, Codable {
     case greenieClosest = "Greenie Closest"
     case greenieOnly = "Greenie Only"
     case sandieClosest = "Sandie Closest"
     case sandieOnly = "Sandie Only"
     case polie = "Polie"
     case snakeKiller = "Snake Killer"
+    case wolf = "Wolf"
     
     public var description: String {
         switch self {
@@ -1037,12 +1038,14 @@ public enum CircusBetType: String, CaseIterable {
             return "Make a putt over 50 feet"
         case .snakeKiller:
             return "Make a putt that kills a snake"
+        case .wolf:
+            return "Wolf game - coming soon!"
         }
     }
 }
 
 // MARK: - PuttingWithPuffBet
-public struct PuttingWithPuffBet: Identifiable {
+public struct PuttingWithPuffBet: Identifiable, Codable {
     public let id: UUID
     public let players: Set<BetComponents.Player>
     public let betAmount: Double
@@ -1074,18 +1077,102 @@ public struct PuttingWithPuffBet: Identifiable {
     }
 }
 
-public class BetManager: ObservableObject {
-    @Published public var individualBets: [IndividualMatchBet] = []
-    @Published public var fourBallBets: [FourBallMatchBet] = []
-    @Published public var alabamaBets: [AlabamaBet] = []
-    @Published public var doDaBets: [DoDaBet] = []
-    @Published public var skinsBets: [SkinsBet] = []
-    @Published public var circusBets: [CircusBet] = []
-    @Published public var puttingWithPuffBets: [PuttingWithPuffBet] = []
-    @Published public var playerScores: [UUID: [String]] = [:]
-    @Published public var teeBox: TeeBox?
+open class BetManager: ObservableObject {
+    @Published open var individualBets: [IndividualMatchBet] = []
+    @Published open var fourBallBets: [FourBallMatchBet] = []
+    @Published open var alabamaBets: [AlabamaBet] = []
+    @Published open var doDaBets: [DoDaBet] = []
+    @Published open var skinsBets: [SkinsBet] = []
+    @Published open var circusBets: [CircusBet] = []
+    @Published open var puttingWithPuffBets: [PuttingWithPuffBet] = []
+    @Published open var playerScores: [UUID: [String]] = [:]
+    @Published open var teeBox: TeeBox?
+    @Published open var groupScores: [Int: [UUID: [String]]] = [:] // Group index -> Player scores
+    @Published open var isGroupLeader: Bool = false
     
-    public init() {}
+    private let userDefaults = UserDefaults.standard
+    private let scoresKey = "savedScores"
+    private let betsKey = "savedBets"
+    
+    public init() {
+        loadSavedData()
+    }
+    
+    private func loadSavedData() {
+        // Load saved scores
+        if let data = userDefaults.data(forKey: scoresKey),
+           let savedScores = try? JSONDecoder().decode([UUID: [String]].self, from: data) {
+            playerScores = savedScores
+        }
+        
+        // Load saved bets
+        if let data = userDefaults.data(forKey: betsKey),
+           let savedBets = try? JSONDecoder().decode(SavedBets.self, from: data) {
+            individualBets = savedBets.individualBets
+            fourBallBets = savedBets.fourBallBets
+            alabamaBets = savedBets.alabamaBets
+            doDaBets = savedBets.doDaBets
+            skinsBets = savedBets.skinsBets
+            circusBets = savedBets.circusBets
+            puttingWithPuffBets = savedBets.puttingWithPuffBets
+        }
+    }
+    
+    private func saveData() {
+        // Save scores
+        if let data = try? JSONEncoder().encode(playerScores) {
+            userDefaults.set(data, forKey: scoresKey)
+        }
+        
+        // Save bets
+        let savedBets = SavedBets(
+            individualBets: individualBets,
+            fourBallBets: fourBallBets,
+            alabamaBets: alabamaBets,
+            doDaBets: doDaBets,
+            skinsBets: skinsBets,
+            circusBets: circusBets,
+            puttingWithPuffBets: puttingWithPuffBets
+        )
+        if let data = try? JSONEncoder().encode(savedBets) {
+            userDefaults.set(data, forKey: betsKey)
+        }
+    }
+    
+    open func updateScoresAndTeeBox(_ scores: [UUID: [String]], _ newTeeBox: TeeBox) {
+        playerScores = scores
+        teeBox = newTeeBox
+        saveData()
+        objectWillChange.send()
+    }
+    
+    open func updateGroupScores(_ scores: [UUID: [String]], forGroup groupIndex: Int) {
+        groupScores[groupIndex] = scores
+        objectWillChange.send()
+    }
+    
+    open func mergeGroupScores() {
+        var mergedScores: [UUID: [String]] = [:]
+        
+        // Merge scores from all groups
+        for (_, scores) in groupScores {
+            for (playerId, playerScores) in scores {
+                mergedScores[playerId] = playerScores
+            }
+        }
+        
+        // Update main scores
+        playerScores = mergedScores
+        saveData()
+        objectWillChange.send()
+    }
+    
+    open func updatePuttingWithPuffBet(_ bet: PuttingWithPuffBet) {
+        if let index = puttingWithPuffBets.firstIndex(where: { $0.id == bet.id }) {
+            puttingWithPuffBets[index] = bet
+            objectWillChange.send()
+        }
+    }
     
     public var allPlayers: [Player] {
         var players = Set<Player>()
@@ -1184,12 +1271,6 @@ public class BetManager: ObservableObject {
         }
         
         return totalSideBetWinnings.rounded(to: 2)
-    }
-    
-    public func updateScoresAndTeeBox(_ scores: [UUID: [String]], _ newTeeBox: TeeBox) {
-        playerScores = scores
-        teeBox = newTeeBox
-        objectWillChange.send()
     }
     
     // MARK: - Bet Management Functions
@@ -1292,21 +1373,43 @@ public class BetManager: ObservableObject {
         objectWillChange.send()
     }
     
-    public func updatePuttingWithPuffBet(_ bet: PuttingWithPuffBet) {
-        if let index = puttingWithPuffBets.firstIndex(where: { $0.id == bet.id }) {
-            puttingWithPuffBets[index] = bet
-            objectWillChange.send()
-        }
-    }
-    
     public func deletePuttingWithPuffBet(_ bet: PuttingWithPuffBet) {
         puttingWithPuffBets.removeAll { $0.id == bet.id }
         objectWillChange.send()
     }
 }
 
+// Add this struct to help with saving bets
+private struct SavedBets: Codable {
+    let individualBets: [IndividualMatchBet]
+    let fourBallBets: [FourBallMatchBet]
+    let alabamaBets: [AlabamaBet]
+    let doDaBets: [DoDaBet]
+    let skinsBets: [SkinsBet]
+    let circusBets: [CircusBet]
+    let puttingWithPuffBets: [PuttingWithPuffBet]
+}
+
 public class UserProfile: ObservableObject {
     @Published public var currentUser: Player?
+    private let userDefaults = UserDefaults.standard
+    private let currentUserKey = "currentUser"
     
-    public init() {}
+    public init() {
+        loadUser()
+    }
+    
+    public func saveUser(_ player: Player) {
+        if let encoded = try? JSONEncoder().encode(player) {
+            userDefaults.set(encoded, forKey: currentUserKey)
+            currentUser = player
+        }
+    }
+    
+    private func loadUser() {
+        if let userData = userDefaults.data(forKey: currentUserKey),
+           let player = try? JSONDecoder().decode(Player.self, from: userData) {
+            currentUser = player
+        }
+    }
 } 

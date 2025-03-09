@@ -2,9 +2,30 @@ import SwiftUI
 import BetComponents
 import os
 
+private struct LoggerKey: EnvironmentKey {
+    static let defaultValue = Logger(subsystem: "com.2downpress", category: "default")
+}
+
+extension EnvironmentValues {
+    var logger: Logger {
+        get { self[LoggerKey.self] }
+        set { self[LoggerKey.self] = newValue }
+    }
+}
+
+extension TeeBox: Hashable {
+    static func == (lhs: TeeBox, rhs: TeeBox) -> Bool {
+        lhs.id == rhs.id
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+}
+
 struct TeeBoxSelectionView: View {
     let course: GolfCourse
-    @State private var selectedTeeBox: TeeBox?
+    @State private var selectedIndex: Int = 0
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var navigateToScorecard = false
@@ -12,17 +33,9 @@ struct TeeBoxSelectionView: View {
     @EnvironmentObject private var userProfile: UserProfile
     @EnvironmentObject private var betManager: BetManager
     
-    private let logger = Logger(subsystem: "com.2downpress", category: "TeeBoxSelection")
-    
-    private func convertToBetComponentsTeeBox(_ teeBox: TeeBox?) -> BetComponents.TeeBox {
-        guard let teeBox = teeBox else {
-            logger.debug("No tee box selected, defaulting to white")
-            return .white
-        }
-        
-        let name = teeBox.name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        logger.debug("Converting tee box: \(name)")
-        
+    private var selectedLocalTeeBox: BetComponents.TeeBox? {
+        guard !course.teeBoxes.isEmpty else { return nil }
+        let name = course.teeBoxes[selectedIndex].name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         switch name {
         case "championship": return .championship
         case "black": return .black
@@ -32,99 +45,154 @@ struct TeeBoxSelectionView: View {
         case "gold": return .gold
         case "white": return .white
         case "green": return .green
-        default:
-            logger.error("Unknown tee box name: \(name), defaulting to white")
-            return .white
+        default: return .white
         }
     }
     
+    private let logger = Logger(subsystem: "com.2downpress", category: "TeeBoxSelection")
+    
     var body: some View {
         NavigationStack {
-            Form {
-                if course.teeBoxes.isEmpty {
-                    Section {
-                        Text("No tee boxes available for this course")
-                            .foregroundColor(.red)
-                    }
-                } else {
-                    Section(header: Text("Select Tee Box")) {
-                        Picker("Tee Box", selection: $selectedTeeBox) {
-                            ForEach(course.teeBoxes) { teeBox in
-                                Text(teeBox.name)
-                                    .tag(Optional(teeBox))
-                            }
-                        }
-                        .pickerStyle(.inline)
-                        .onChange(of: selectedTeeBox) { oldValue, newValue in
-                            logger.debug("Tee box selection changed from \(String(describing: oldValue?.name)) to \(String(describing: newValue?.name))")
-                        }
-                    }
-                    
-                    if let selected = selectedTeeBox {
-                        Section(header: Text("Tee Box Details")) {
-                            HStack {
-                                Text("Rating:")
-                                Spacer()
-                                Text(String(format: "%.1f", selected.rating))
-                            }
-                            HStack {
-                                Text("Slope:")
-                                Spacer()
-                                Text("\(selected.slope)")
-                            }
-                            HStack {
-                                Text("Total Yards:")
-                                Spacer()
-                                Text("\(selected.holes.reduce(0) { $0 + $1.yardage })")
-                            }
-                        }
-                    }
-                }
-            }
+            TeeBoxFormContent(
+                course: course,
+                selectedIndex: $selectedIndex,
+                selectedLocalTeeBox: selectedLocalTeeBox
+            )
             .navigationTitle("Select Tee Box")
             .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        HStack {
-                            Image(systemName: "chevron.left")
-                            Text("Course Selection")
-                        }
-                    }
+                    BackButton(dismiss: dismiss)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if !course.teeBoxes.isEmpty {
-                        Button(action: {
-                            navigateToScorecard = true
-                        }) {
-                            Text("Next")
-                        }
-                        .disabled(selectedTeeBox == nil)
-                    }
+                    NextButton(
+                        isEnabled: !course.teeBoxes.isEmpty && selectedLocalTeeBox != nil,
+                        action: { navigateToScorecard = true }
+                    )
                 }
             }
             .navigationDestination(isPresented: $navigateToScorecard) {
-                if let selected = selectedTeeBox {
-                    let betTeeBox = convertToBetComponentsTeeBox(selected)
-                    ScorecardView(course: course, teeBox: betTeeBox)
+                if let selected = selectedLocalTeeBox {
+                    ScorecardView(course: course, teeBox: selected)
                 }
             }
         }
         .onAppear {
-            logger.debug("TeeBoxSelectionView appeared with \(course.teeBoxes.count) tee boxes")
-            if !course.teeBoxes.isEmpty {
-                selectedTeeBox = course.teeBoxes[0]
-                logger.debug("Set initial tee box to: \(course.teeBoxes[0].name)")
-            } else {
-                logger.error("No tee boxes available for course: \(course.name)")
-            }
+            selectedIndex = 0
+            logger.debug("Set initial tee box index to 0")
         }
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) { }
         } message: {
             Text(errorMessage)
         }
+    }
+}
+
+private struct TeeBoxFormContent: View {
+    let course: GolfCourse
+    @Binding var selectedIndex: Int
+    let selectedLocalTeeBox: BetComponents.TeeBox?
+    
+    var body: some View {
+        Form {
+            if course.teeBoxes.isEmpty {
+                EmptyTeeBoxSection()
+            } else {
+                TeeBoxPickerSection(
+                    course: course,
+                    selectedIndex: $selectedIndex
+                )
+                
+                if let selected = selectedLocalTeeBox {
+                    TeeBoxDetailsSection(teeBox: selected)
+                }
+            }
+        }
+    }
+}
+
+private struct EmptyTeeBoxSection: View {
+    var body: some View {
+        Section {
+            Text("No tee boxes available for this course")
+                .foregroundColor(.red)
+        }
+    }
+}
+
+private struct TeeBoxPickerSection: View {
+    let course: GolfCourse
+    @Binding var selectedIndex: Int
+    
+    var body: some View {
+        Section(header: Text("Select Tee Box")) {
+            Picker("Tee Box", selection: $selectedIndex) {
+                ForEach(Array(course.teeBoxes.enumerated()), id: \.offset) { index, teeBox in
+                    Text(teeBox.name).tag(index)
+                }
+            }
+            .pickerStyle(.inline)
+        }
+    }
+}
+
+private struct TeeBoxDetailsSection: View {
+    let teeBox: BetComponents.TeeBox
+    
+    var body: some View {
+        Section(header: Text("Tee Box Details")) {
+            TotalYardsRow(teeBox: teeBox)
+            TotalParRow(teeBox: teeBox)
+        }
+    }
+}
+
+private struct TotalYardsRow: View {
+    let teeBox: BetComponents.TeeBox
+    
+    var body: some View {
+        HStack {
+            Text("Total Yards:")
+            Spacer()
+            Text("\(teeBox.holes.reduce(0) { $0 + $1.yardage })")
+        }
+    }
+}
+
+private struct TotalParRow: View {
+    let teeBox: BetComponents.TeeBox
+    
+    var body: some View {
+        HStack {
+            Text("Total Par:")
+            Spacer()
+            Text("\(teeBox.holes.reduce(0) { $0 + $1.par })")
+        }
+    }
+}
+
+private struct BackButton: View {
+    let dismiss: DismissAction
+    
+    var body: some View {
+        Button(action: { dismiss() }) {
+            HStack {
+                Image(systemName: "chevron.left")
+                Text("Course Selection")
+            }
+        }
+    }
+}
+
+private struct NextButton: View {
+    let isEnabled: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text("Next")
+        }
+        .disabled(!isEnabled)
     }
 } 

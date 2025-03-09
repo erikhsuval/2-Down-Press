@@ -73,9 +73,7 @@ struct PostRoundView: View {
             .alert("Unpost Round", isPresented: $showUnpostConfirmation) {
                 Button("Cancel", role: .cancel) { }
                 Button("Unpost", role: .destructive) {
-                    betManager.playerScores = [:]
-                    betManager.teeBox = nil
-                    betManager.objectWillChange.send()
+                    betManager.updateScoresAndTeeBox([:], teeBox)
                     isRoundPosted = false
                     dismiss()
                 }

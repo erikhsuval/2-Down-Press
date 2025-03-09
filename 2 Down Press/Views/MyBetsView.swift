@@ -55,52 +55,52 @@ struct MyBetsView: View {
         }
         
         // Always include current user if available
-        if let currentUser = userProfile.currentUser {
-            players.insert(currentUser)
+        if let user = userProfile.currentUser {
+            players.insert(user)
         }
         
         return Array(players)
     }
     
     var myIndividualBets: [IndividualMatchBet] {
-        guard let currentUser = userProfile.currentUser else { return [] }
+        guard let user = userProfile.currentUser else { return [] }
         return betManager.individualBets.filter { bet in
-            bet.player1.id == currentUser.id || bet.player2.id == currentUser.id
+            bet.player1.id == user.id || bet.player2.id == user.id
         }
     }
     
     var myFourBallBets: [FourBallMatchBet] {
-        guard let currentUser = userProfile.currentUser else { return [] }
+        guard let user = userProfile.currentUser else { return [] }
         return betManager.fourBallBets.filter { bet in
-            bet.team1Player1.id == currentUser.id || 
-            bet.team1Player2.id == currentUser.id ||
-            bet.team2Player1.id == currentUser.id || 
-            bet.team2Player2.id == currentUser.id
+            bet.team1Player1.id == user.id || 
+            bet.team1Player2.id == user.id ||
+            bet.team2Player1.id == user.id || 
+            bet.team2Player2.id == user.id
         }
     }
     
     var myAlabamaBets: [AlabamaBet] {
-        guard let currentUser = userProfile.currentUser else { return [] }
+        guard let user = userProfile.currentUser else { return [] }
         return betManager.alabamaBets.filter { bet in
             bet.teams.contains { team in
                 team.contains { player in
-                    player.id == currentUser.id
+                    player.id == user.id
                 }
             }
         }
     }
     
     var myDoDaBets: [DoDaBet] {
-        guard let currentUser = userProfile.currentUser else { return [] }
+        guard let user = userProfile.currentUser else { return [] }
         return betManager.doDaBets.filter { bet in
-            bet.players.contains { $0.id == currentUser.id }
+            bet.players.contains { $0.id == user.id }
         }
     }
     
     var mySkinsBets: [SkinsBet] {
-        guard let currentUser = userProfile.currentUser else { return [] }
+        guard let user = userProfile.currentUser else { return [] }
         return betManager.skinsBets.filter { bet in
-            bet.players.contains { $0.id == currentUser.id }
+            bet.players.contains { $0.id == user.id }
         }
     }
     

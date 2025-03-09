@@ -88,32 +88,40 @@ struct IndividualMatchSetupView: View {
     
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text("PLAYERS")) {
+            List {
+                Section("PLAYERS") {
                     Button(action: {
                         selectingForFirstPlayer = true
                         showPlayerSelection = true
                     }) {
-                        PlayerSelectionButton(
-                            title: "Player 1",
-                            playerName: viewModel.selectedPlayer1?.firstName ?? "Select Player",
-                            icon: "person.fill"
-                        )
+                        HStack {
+                            Text("Player 1")
+                                .font(.headline)
+                            Spacer()
+                            Text(viewModel.selectedPlayer1?.firstName ?? "Select Player")
+                                .foregroundColor(.gray)
+                            Image(systemName: "person.fill")
+                                .foregroundColor(.primaryGreen)
+                        }
                     }
                     
                     Button(action: {
                         selectingForFirstPlayer = false
                         showPlayerSelection = true
                     }) {
-                        PlayerSelectionButton(
-                            title: "Player 2",
-                            playerName: viewModel.selectedPlayer2?.firstName ?? "Select Player",
-                            icon: "person.fill"
-                        )
+                        HStack {
+                            Text("Player 2")
+                                .font(.headline)
+                            Spacer()
+                            Text(viewModel.selectedPlayer2?.firstName ?? "Select Player")
+                                .foregroundColor(.gray)
+                            Image(systemName: "person.fill")
+                                .foregroundColor(.primaryGreen)
+                        }
                     }
                 }
                 
-                Section(header: Text("BET DETAILS")) {
+                Section("BET DETAILS") {
                     VStack(spacing: 16) {
                         // Per Hole Amount
                         VStack(alignment: .leading, spacing: 8) {
@@ -164,6 +172,7 @@ struct IndividualMatchSetupView: View {
                     .padding(.vertical, 8)
                 }
             }
+            .listStyle(InsetGroupedListStyle())
             .navigationTitle(viewModel.navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

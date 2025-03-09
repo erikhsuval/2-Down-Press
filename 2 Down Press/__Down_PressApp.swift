@@ -9,13 +9,20 @@ import SwiftUI
 
 @main
 struct TwoDownPressApp: App {
+    @StateObject private var playerManager = PlayerManager()
+    @StateObject private var groupManager = GroupManager()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(playerManager)
+                .environmentObject(groupManager)
         }
     }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(PlayerManager())
+        .environmentObject(GroupManager())
 }

@@ -237,7 +237,7 @@ private struct StadiumScoreboard: View {
             ScrollView {
                 VStack(spacing: 1) {
                     ForEach(sortedPlayers, id: \.player.id) { playerInfo in
-                        ScoreboardRow(
+                        PuttingScoreboardRow(
                             playerName: playerInfo.player.firstName,
                             amount: playerInfo.total,
                             showAnimation: showAnimation
@@ -315,7 +315,7 @@ private struct MoneySymbol: View {
     }
 }
 
-private struct ScoreboardRow: View {
+private struct PuttingScoreboardRow: View {
     let playerName: String
     let amount: Double
     let showAnimation: Bool

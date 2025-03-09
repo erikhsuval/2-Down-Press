@@ -163,7 +163,8 @@ struct AlabamaSetupView: View {
                     allPlayers: allPlayers,
                     excludedPlayers: excludedPlayers,
                     teamName: "Team \(currentTeamIndex + 1)",
-                    teamColor: teamColors[currentTeamIndex]
+                    teamColor: teamColors[currentTeamIndex],
+                    isFlexible: false
                 )
                 .environmentObject(userProfile)
             }

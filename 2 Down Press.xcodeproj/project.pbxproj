@@ -12,6 +12,7 @@
 		523763A62D6CB99A00D14C54 /* BetComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 523763A52D6CB99A00D14C54 /* BetComponents */; };
 		523763AD2D6CBD1000D14C54 /* BetComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 523763AC2D6CBD1000D14C54 /* BetComponents */; };
 		525EC7862D47359E0017BF10 /* .swiftlint.yml in Resources */ = {isa = PBXBuildFile; fileRef = 525EC7852D4734FA0017BF10 /* .swiftlint.yml */; };
+		52C70AFA2D7D039A00005D6E /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = 52C70AF92D7D039A00005D6E /* CodeScanner */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,6 +68,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				52C70AFA2D7D039A00005D6E /* CodeScanner in Frameworks */,
 				523763A62D6CB99A00D14C54 /* BetComponents in Frameworks */,
 				523763AD2D6CBD1000D14C54 /* BetComponents in Frameworks */,
 				523763A32D6CB94900D14C54 /* BetComponents in Frameworks */,
@@ -170,6 +172,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				52C70AFE2D7D378800005D6E /* PBXTargetDependency */,
 				523763AA2D6CBCF200D14C54 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -180,6 +183,7 @@
 				523763A22D6CB94900D14C54 /* BetComponents */,
 				523763A52D6CB99A00D14C54 /* BetComponents */,
 				523763AC2D6CBD1000D14C54 /* BetComponents */,
+				52C70AF92D7D039A00005D6E /* CodeScanner */,
 			);
 			productName = "2 Down Press";
 			productReference = 524862032D32CE8900C1412E /* 2 Down Press.app */;
@@ -265,6 +269,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				523763AB2D6CBD1000D14C54 /* XCLocalSwiftPackageReference "2 Down Press/BetComponents" */,
+				52C70AF82D7D039A00005D6E /* XCRemoteSwiftPackageReference "CodeScanner" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 524862042D32CE8900C1412E /* Products */;
@@ -385,6 +390,10 @@
 			isa = PBXTargetDependency;
 			target = 524862022D32CE8900C1412E /* 2 Down Press */;
 			targetProxy = 5248621E2D32CE8A00C1412E /* PBXContainerItemProxy */;
+		};
+		52C70AFE2D7D378800005D6E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = 52C70AFD2D7D378800005D6E /* CodeScanner */;
 		};
 /* End PBXTargetDependency section */
 
@@ -515,13 +524,14 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"2 Down Press/Preview Content\"";
 				DEVELOPMENT_TEAM = 9LD4B84GDT;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "--Down-Press-Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -547,13 +557,14 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"2 Down Press/Preview Content\"";
 				DEVELOPMENT_TEAM = 9LD4B84GDT;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "--Down-Press-Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -692,6 +703,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		52C70AF82D7D039A00005D6E /* XCRemoteSwiftPackageReference "CodeScanner" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/twostraws/CodeScanner";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		523763A22D6CB94900D14C54 /* BetComponents */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -708,6 +730,16 @@
 		523763AC2D6CBD1000D14C54 /* BetComponents */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = BetComponents;
+		};
+		52C70AF92D7D039A00005D6E /* CodeScanner */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 52C70AF82D7D039A00005D6E /* XCRemoteSwiftPackageReference "CodeScanner" */;
+			productName = CodeScanner;
+		};
+		52C70AFD2D7D378800005D6E /* CodeScanner */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 52C70AF82D7D039A00005D6E /* XCRemoteSwiftPackageReference "CodeScanner" */;
+			productName = CodeScanner;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
