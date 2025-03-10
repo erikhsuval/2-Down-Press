@@ -596,15 +596,15 @@ struct ScorecardGridView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             VStack(spacing: 1) {
                 // Header row
-                HStack(spacing: 0) {
+                HStack(spacing: 1) {
                     Text("Hole")
-                        .frame(width: 60)
+                        .frame(width: 80)
                         .font(.subheadline.bold())
                         .foregroundColor(.white)
                     
                     ForEach(holes) { hole in
                         Text("\(hole.number)")
-                            .frame(width: 60)
+                            .frame(width: 80)
                             .font(.subheadline.bold())
                             .foregroundColor(.white)
                     }
@@ -619,15 +619,15 @@ struct ScorecardGridView: View {
                 )
                 
                 // Par row
-                HStack(spacing: 0) {
+                HStack(spacing: 1) {
                     Text("Par")
-                        .frame(width: 60)
+                        .frame(width: 80)
                         .font(.subheadline.bold())
                         .foregroundColor(.white)
                     
                     ForEach(holes) { hole in
                         Text("\(hole.par)")
-                            .frame(width: 60)
+                            .frame(width: 80)
                             .font(.subheadline.bold())
                             .foregroundColor(.white)
                     }
@@ -642,15 +642,15 @@ struct ScorecardGridView: View {
                 )
                 
                 // Yardage row
-                HStack(spacing: 0) {
+                HStack(spacing: 1) {
                     Text("Yards")
-                        .frame(width: 60)
+                        .frame(width: 80)
                         .font(.subheadline.bold())
                         .foregroundColor(.white)
                     
                     ForEach(holes) { hole in
                         Text("\(hole.yardage)")
-                            .frame(width: 60)
+                            .frame(width: 80)
                             .font(.subheadline.bold())
                             .foregroundColor(.white)
                     }
@@ -665,9 +665,9 @@ struct ScorecardGridView: View {
                 )
                 
                 // Score row
-                HStack(spacing: 0) {
+                HStack(spacing: 1) {
                     Text("Score")
-                        .frame(width: 60)
+                        .frame(width: 80)
                         .font(.subheadline.bold())
                         .foregroundColor(.white)
                     
@@ -680,6 +680,7 @@ struct ScorecardGridView: View {
                                 set: { onScoreUpdate(index, $0) }
                             )
                         )
+                        .frame(width: 80)
                     }
                 }
                 .padding(.vertical, 8)
@@ -731,7 +732,7 @@ struct ScorecarTotalsView: View {
     }
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             HStack {
                 Text("Front 9:")
                     .font(.subheadline)
@@ -765,7 +766,8 @@ struct ScorecarTotalsView: View {
                     .foregroundColor(.white)
             }
         }
-        .padding()
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
         .background(
             LinearGradient(
                 gradient: Gradient(colors: [Color.primaryGreen, Color.deepNavyBlue]),
@@ -776,6 +778,113 @@ struct ScorecarTotalsView: View {
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
         .padding(.horizontal)
+    }
+}
+
+struct ScoreDisplayView: View {
+    let score: String
+    let par: Int
+    @Binding var scoreText: String
+    @State private var showKeypad = false
+    
+    private var scoreInt: Int? {
+        Int(score)
+    }
+    
+    private func colorForScore(_ score: Int) -> Color {
+        if score == 1 || score < par - 1 { return .secondaryGold }
+        if score == par - 1 { return .red }
+        if score == par { return .primaryGreen }
+        return .blue
+    }
+    
+    var body: some View {
+        Button(action: {
+            showKeypad = true
+        }) {
+            VStack(spacing: 4) {
+                // Score box with decorations
+                ZStack {
+                    // Base score box
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.white)
+                        .frame(width: 80, height: 50)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        )
+                    
+                    ZStack {
+                        // Score display
+                        if let currentScore = scoreInt {
+                            Text(score)
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(colorForScore(currentScore))
+                            
+                            // Decorative shapes
+                            if currentScore < par - 1 {
+                                // Double circle for eagle or better
+                                ZStack {
+                                    Circle()
+                                        .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                                        .frame(width: 36, height: 36)
+                                    Circle()
+                                        .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                                        .frame(width: 42, height: 42)
+                                }
+                            } else if currentScore == par - 1 {
+                                // Single circle for birdie
+                                Circle()
+                                    .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                                    .frame(width: 36, height: 36)
+                            } else if currentScore == par + 1 {
+                                // Single square for bogey
+                                Rectangle()
+                                    .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                                    .frame(width: 36, height: 36)
+                            } else if currentScore == par + 2 {
+                                // Double square for double bogey
+                                ZStack {
+                                    Rectangle()
+                                        .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                                        .frame(width: 36, height: 36)
+                                    Rectangle()
+                                        .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                                        .frame(width: 42, height: 42)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Emoji indicators below the score
+                if let currentScore = scoreInt {
+                    if currentScore == 1 {
+                        Text("⭐️")
+                            .font(.caption)
+                    } else if currentScore == 2 {
+                        Text("DO DA")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    } else if currentScore > par + 2 {
+                        Text("💩")
+                            .font(.caption)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showKeypad) {
+            CustomNumberKeypad(
+                text: $scoreText,
+                onNext: {
+                    showKeypad = false
+                },
+                onPrevious: {
+                    showKeypad = false
+                }
+            )
+            .presentationDetents([.height(350)])
+        }
     }
 }
 
@@ -1637,112 +1746,6 @@ struct CustomNumberKeypad: View {
     private func resetTimer() {
         inactivityTimer?.invalidate()
         startTimer()
-    }
-}
-
-struct ScoreDisplayView: View {
-    let score: String
-    let par: Int
-    @Binding var scoreText: String
-    @State private var showKeypad = false
-    
-    private var scoreInt: Int? {
-        Int(score)
-    }
-    
-    private func colorForScore(_ score: Int) -> Color {
-        if score == 1 || score < par - 1 { return .secondaryGold }
-        if score == par - 1 { return .red }
-        if score == par { return .primaryGreen }
-        return .blue
-    }
-    
-    var body: some View {
-        VStack(spacing: 4) {
-            // Score box with decorations
-            ZStack {
-                // Base score box
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white)
-                    .frame(width: 80, height: 50)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
-                
-                ZStack {
-                    // Score display
-                    if let currentScore = scoreInt {
-                        Text(score)
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(colorForScore(currentScore))
-                        
-                        // Decorative shapes
-                        if currentScore < par - 1 {
-                            // Double circle for eagle or better
-                            ZStack {
-                                Circle()
-                                    .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                    .frame(width: 36, height: 36)
-                                Circle()
-                                    .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                    .frame(width: 42, height: 42)
-                            }
-                        } else if currentScore == par - 1 {
-                            // Single circle for birdie
-                            Circle()
-                                .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                .frame(width: 36, height: 36)
-                        } else if currentScore == par + 1 {
-                            // Single square for bogey
-                            Rectangle()
-                                .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                .frame(width: 36, height: 36)
-                        } else if currentScore == par + 2 {
-                            // Double square for double bogey
-                            ZStack {
-                                Rectangle()
-                                    .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                    .frame(width: 36, height: 36)
-                                Rectangle()
-                                    .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                    .frame(width: 42, height: 42)
-                            }
-                        }
-                    }
-                }
-                .onTapGesture {
-                    showKeypad = true
-                }
-            }
-            .sheet(isPresented: $showKeypad) {
-                CustomNumberKeypad(
-                    text: $scoreText,
-                    onNext: {
-                        showKeypad = false
-                    },
-                    onPrevious: {
-                        showKeypad = false
-                    }
-                )
-                .presentationDetents([.height(350)])
-            }
-            
-            // Emoji indicators below the score
-            if let currentScore = scoreInt {
-                if currentScore == 1 {
-                    Text("⭐️")
-                        .font(.caption)
-                } else if currentScore == 2 {
-                    Text("DO DA")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                } else if currentScore > par + 2 {
-                    Text("💩")
-                        .font(.caption)
-                }
-            }
-        }
     }
 }
 
