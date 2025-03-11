@@ -382,12 +382,6 @@ private struct ScorecardContentView: View {
     @State private var selectedPlayerIndex = 0
     let updateScore: (BetComponents.Player, Int, String) -> Void
     
-    func playerRows() -> [(player: BetComponents.Player, index: Int)] {
-        Array(players.enumerated()).map { (index, player) in
-            (player: player, index: index)
-        }
-    }
-    
     var body: some View {
         VStack(spacing: 0) {
             // Player carousel
@@ -422,32 +416,37 @@ private struct ScorecardContentView: View {
             .padding(.horizontal)
             
             // Scorecard content
-            VStack(spacing: 16) {
-                // Front 9
-                ScorecardGridView(
-                    holes: Array(teeBox.holes.prefix(9)),
-                    scores: playerScores[players[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18),
-                    onScoreUpdate: { index, score in
-                        updateScore(players[selectedPlayerIndex], index, score)
-                    }
-                )
+            if selectedPlayerIndex < players.count {
+                let currentPlayer = players[selectedPlayerIndex]
+                let currentPlayerScores = playerScores[currentPlayer.id] ?? Array(repeating: "", count: 18)
                 
-                // Back 9
-                ScorecardGridView(
-                    holes: Array(teeBox.holes.suffix(9)),
-                    scores: playerScores[players[selectedPlayerIndex].id]?.suffix(9).map { String($0) } ?? Array(repeating: "", count: 9),
-                    onScoreUpdate: { index, score in
-                        updateScore(players[selectedPlayerIndex], index + 9, score)
-                    }
-                )
-                
-                // Totals
-                ScorecarTotalsView(
-                    holes: teeBox.holes,
-                    scores: playerScores[players[selectedPlayerIndex].id] ?? Array(repeating: "", count: 18)
-                )
+                VStack(spacing: 16) {
+                    // Front 9
+                    ScorecardGridView(
+                        holes: Array(teeBox.holes.prefix(9)),
+                        scores: Array(currentPlayerScores.prefix(9)),
+                        onScoreUpdate: { index, score in
+                            updateScore(currentPlayer, index, score)
+                        }
+                    )
+                    
+                    // Back 9
+                    ScorecardGridView(
+                        holes: Array(teeBox.holes.suffix(9)),
+                        scores: Array(currentPlayerScores.suffix(9)),
+                        onScoreUpdate: { index, score in
+                            updateScore(currentPlayer, index + 9, score)
+                        }
+                    )
+                    
+                    // Totals
+                    ScorecarTotalsView(
+                        holes: teeBox.holes,
+                        scores: currentPlayerScores
+                    )
+                }
+                .padding(.bottom)
             }
-            .padding(.bottom)
         }
         .onChange(of: selectedPlayerIndex) { oldValue, newValue in
             // Dismiss keyboard when switching players
@@ -953,8 +952,8 @@ struct ScoreDisplayView: View {
                     showKeypad = false
                 }
             )
-            .presentationDetents([.height(320)])  // Reduced height
-            .presentationBackground(.clear)  // Clear background for sheet
+            .presentationDetents([.height(320)])
+            .presentationBackground(.clear)
         }
         .onChange(of: score) { oldValue, newValue in
             tempScore = newValue
