@@ -199,6 +199,7 @@ struct ContentView: View {
     @State private var showTheSheet = false
     @State private var showFourBallMatchSetup = false
     @State private var showContinueAlert = false
+    @State private var navigateToScorecard = false
     
     var body: some View {
         NavigationStack {
@@ -229,14 +230,15 @@ struct ContentView: View {
                     // Main Navigation Buttons
                     VStack(spacing: 20) {
                         if let currentGame = gameStateManager.currentGame {
-                            Button {
-                                // Restore the game state before navigating
-                                gameStateManager.restoreGame(to: betManager)
+                            NavigationLink {
                                 if let course = locationManager.courses.first(where: { $0.id == currentGame.courseId }),
                                    let teeBox = course.teeBoxes.first(where: { $0.name == currentGame.teeBoxName }) {
-                                    // Update the betManager with the course and tee box
-                                    betManager.teeBox = teeBox
-                                    showPlayerList = true
+                                    // Restore game state and navigate to scorecard
+                                    ScorecardView(course: course, teeBox: teeBox)
+                                        .onAppear {
+                                            gameStateManager.restoreGame(to: betManager)
+                                            betManager.teeBox = teeBox
+                                        }
                                 }
                             } label: {
                                 MainMenuButtonView(
@@ -303,20 +305,9 @@ struct ContentView: View {
                 .environmentObject(betManager)
         }
         .sheet(isPresented: $showPlayerList) {
-            if let currentGame = gameStateManager.currentGame {
-                // If continuing a game, go directly to scorecard
-                if let course = locationManager.courses.first(where: { $0.id == currentGame.courseId }),
-                   let teeBox = course.teeBoxes.first(where: { $0.name == currentGame.teeBoxName }) {
-                    ScorecardView(course: course, teeBox: teeBox)
-                        .environmentObject(betManager)
-                        .environmentObject(userProfile)
-                }
-            } else {
-                // Otherwise show course selection
-                GolfCourseSelectionView(locationManager: locationManager)
-                    .environmentObject(betManager)
-                    .environmentObject(userProfile)
-            }
+            GolfCourseSelectionView(locationManager: locationManager)
+                .environmentObject(betManager)
+                .environmentObject(userProfile)
         }
         .environmentObject(userProfile)
         .environmentObject(betManager)
