@@ -208,7 +208,7 @@ struct ContentView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .edgesIgnoringSafeArea(.all)
-                    .overlay(Color.black.opacity(0.3)) // Slightly lighter overlay
+                    .overlay(Color.black.opacity(0.3))
                 
                 VStack {
                     // Logo and Title
@@ -216,23 +216,27 @@ struct ContentView: View {
                         Text("2 Down Press")
                             .font(.system(size: 42, weight: .bold))
                             .foregroundColor(.white)
-                            .shadow(color: .black, radius: 2) // Add shadow for better contrast
+                            .shadow(color: .black, radius: 2)
                         
                         Text("Golf Group Bets Made Easy")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(.white)
-                            .shadow(color: .black, radius: 2) // Add shadow for better contrast
+                            .shadow(color: .black, radius: 2)
                     }
                     .padding(.top, 60)
                     .padding(.bottom, 40)
                     
                     // Main Navigation Buttons
-                    VStack(spacing: 20) { // Increased spacing between buttons
+                    VStack(spacing: 20) {
                         if let currentGame = gameStateManager.currentGame {
-                            NavigationLink {
+                            Button {
+                                // Restore the game state before navigating
+                                gameStateManager.restoreGame(to: betManager)
                                 if let course = locationManager.courses.first(where: { $0.id == currentGame.courseId }),
                                    let teeBox = course.teeBoxes.first(where: { $0.name == currentGame.teeBoxName }) {
-                                    ScorecardView(course: course, teeBox: teeBox)
+                                    // Update the betManager with the course and tee box
+                                    betManager.teeBox = teeBox
+                                    showPlayerList = true
                                 }
                             } label: {
                                 MainMenuButtonView(
@@ -282,7 +286,7 @@ struct ContentView: View {
                             )
                         }
                     }
-                    .padding(.horizontal) // Add horizontal padding to the button stack
+                    .padding(.horizontal)
                     
                     Spacer()
                 }
@@ -299,9 +303,20 @@ struct ContentView: View {
                 .environmentObject(betManager)
         }
         .sheet(isPresented: $showPlayerList) {
-            GolfCourseSelectionView(locationManager: locationManager)
-                .environmentObject(betManager)
-                .environmentObject(userProfile)
+            if let currentGame = gameStateManager.currentGame {
+                // If continuing a game, go directly to scorecard
+                if let course = locationManager.courses.first(where: { $0.id == currentGame.courseId }),
+                   let teeBox = course.teeBoxes.first(where: { $0.name == currentGame.teeBoxName }) {
+                    ScorecardView(course: course, teeBox: teeBox)
+                        .environmentObject(betManager)
+                        .environmentObject(userProfile)
+                }
+            } else {
+                // Otherwise show course selection
+                GolfCourseSelectionView(locationManager: locationManager)
+                    .environmentObject(betManager)
+                    .environmentObject(userProfile)
+            }
         }
         .environmentObject(userProfile)
         .environmentObject(betManager)
