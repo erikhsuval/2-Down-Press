@@ -162,16 +162,43 @@ struct PlayerDetailsView: View {
     }
 }
 
+struct MainMenuButtonView: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 24))
+                Text(title)
+                    .font(.title3)
+            }
+            
+            Text(subtitle)
+                .font(.subheadline)
+        }
+        .frame(width: UIScreen.main.bounds.width * 0.75) // 75% of screen width
+        .padding(.vertical, 16)
+        .background(Color.white.opacity(0.2)) // Transparent white
+        .foregroundColor(.white)
+        .cornerRadius(16)
+    }
+}
+
 struct ContentView: View {
     @StateObject private var locationManager = LocationManager(golfService: GolfCourseService())
     @StateObject private var userProfile = UserProfile()
     @StateObject private var betManager = BetManager()
+    @StateObject private var gameStateManager = GameStateManager()
     @State private var showMenu = false
     @State private var showPlayerList = false
     @State private var showMyAccount = false
     @State private var showMyBets = false
     @State private var showTheSheet = false
     @State private var showFourBallMatchSetup = false
+    @State private var showContinueAlert = false
     
     var body: some View {
         NavigationStack {
@@ -181,40 +208,83 @@ struct ContentView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .edgesIgnoringSafeArea(.all)
-                    .overlay(
-                        Color.black.opacity(0.3)
-                    )
+                    .overlay(Color.black.opacity(0.3)) // Slightly lighter overlay
                 
-                VStack(spacing: 30) {
+                VStack {
                     // Logo and Title
-                    VStack(spacing: 15) {
+                    VStack(spacing: 8) {
                         Text("2 Down Press")
                             .font(.system(size: 42, weight: .bold))
                             .foregroundColor(.white)
+                            .shadow(color: .black, radius: 2) // Add shadow for better contrast
                         
                         Text("Golf Group Bets Made Easy")
                             .font(.system(size: 18, weight: .medium))
                             .foregroundColor(.white)
+                            .shadow(color: .black, radius: 2) // Add shadow for better contrast
                     }
                     .padding(.top, 60)
-                    
-                    Spacer()
+                    .padding(.bottom, 40)
                     
                     // Main Navigation Buttons
-                    VStack(spacing: 20) {
-                        NavigationLink {
-                            PlayerDetailsView()
-                                .environmentObject(userProfile)
-                                .environmentObject(betManager)
-                        } label: {
-                            MainMenuButtonView(title: "Play", systemImage: "figure.golf")
+                    VStack(spacing: 20) { // Increased spacing between buttons
+                        if let currentGame = gameStateManager.currentGame {
+                            NavigationLink {
+                                if let course = locationManager.courses.first(where: { $0.id == currentGame.courseId }),
+                                   let teeBox = course.teeBoxes.first(where: { $0.name == currentGame.teeBoxName }) {
+                                    ScorecardView(course: course, teeBox: teeBox)
+                                }
+                            } label: {
+                                MainMenuButtonView(
+                                    title: "Continue Round",
+                                    subtitle: "\(currentGame.courseName) • \(currentGame.players.count) Players",
+                                    systemImage: "arrow.forward.circle.fill"
+                                )
+                            }
+                            
+                            Button {
+                                gameStateManager.clearCurrentGame()
+                                if userProfile.currentUser == nil {
+                                    showMyAccount = true
+                                } else {
+                                    showPlayerList = true
+                                }
+                            } label: {
+                                MainMenuButtonView(
+                                    title: "New Round",
+                                    subtitle: "Start fresh round",
+                                    systemImage: "plus.circle.fill"
+                                )
+                            }
+                        } else {
+                            Button {
+                                if userProfile.currentUser == nil {
+                                    showMyAccount = true
+                                } else {
+                                    showPlayerList = true
+                                }
+                            } label: {
+                                MainMenuButtonView(
+                                    title: "Start Round",
+                                    subtitle: "Begin new round",
+                                    systemImage: "figure.golf"
+                                )
+                            }
                         }
                         
-                        Button(action: { showMenu.toggle() }) {
-                            MainMenuButtonView(title: "Menu", systemImage: "line.3.horizontal")
+                        Button {
+                            showMenu = true
+                        } label: {
+                            MainMenuButtonView(
+                                title: "Menu",
+                                subtitle: "Settings & more",
+                                systemImage: "line.3.horizontal"
+                            )
                         }
                     }
-                    .padding(.bottom, 50)
+                    .padding(.horizontal) // Add horizontal padding to the button stack
+                    
+                    Spacer()
                 }
             }
         }
@@ -223,30 +293,19 @@ struct ContentView: View {
                 .environmentObject(betManager)
                 .environmentObject(userProfile)
         }
+        .sheet(isPresented: $showMyAccount) {
+            PlayerDetailsView()
+                .environmentObject(userProfile)
+                .environmentObject(betManager)
+        }
+        .sheet(isPresented: $showPlayerList) {
+            GolfCourseSelectionView(locationManager: locationManager)
+                .environmentObject(betManager)
+                .environmentObject(userProfile)
+        }
         .environmentObject(userProfile)
         .environmentObject(betManager)
-    }
-}
-
-struct MainMenuButtonView: View {
-    let title: String
-    let systemImage: String
-    
-    var body: some View {
-        HStack {
-            Image(systemName: systemImage)
-                .font(.title2)
-            Text(title)
-                .font(.title2.bold())
-        }
-        .foregroundColor(.white)
-        .frame(maxWidth: .infinity)
-        .frame(height: 55)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.primaryGreen.opacity(0.8))
-        )
-        .padding(.horizontal, 30)
+        .environmentObject(gameStateManager)
     }
 }
 
@@ -260,25 +319,23 @@ struct GolfCourseSelectionView: View {
     }
     
     var body: some View {
-        VStack {
-            if locationManager.isLoading {
-                ProgressView("Loading courses...")
-            } else {
-                List {
+        NavigationStack {
+            List {
+                if locationManager.isLoading {
+                    ProgressView("Loading courses...")
+                } else {
                     ForEach(locationManager.courses) { course in
                         NavigationLink(destination: TeeBoxSelectionView(course: course)
                             .environmentObject(userProfile)
                             .environmentObject(betManager)) {
-                            VStack(alignment: .leading) {
-                                Text(course.name)
-                                    .font(.headline)
-                            }
+                            Text(course.name)
+                                .font(.headline)
                         }
                     }
                 }
             }
+            .navigationTitle("Select Course")
         }
-        .navigationTitle("Select Course")
         .onAppear {
             locationManager.startUpdatingLocation()
         }
