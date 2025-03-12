@@ -287,6 +287,23 @@ class BetManager: ObservableObject {
         return totalSideBetWinnings
     }
     
+    func restoreGameState(from gameState: GameState) {
+        // Restore all bets
+        individualBets = gameState.bets.individualBets
+        fourBallBets = gameState.bets.fourBallBets
+        alabamaBets = gameState.bets.alabamaBets
+        doDaBets = gameState.bets.doDaBets
+        skinsBets = gameState.bets.skinsBets
+        
+        // Restore scores
+        playerScores = gameState.scores
+        
+        // Restore selected players
+        selectedPlayers = gameState.players
+        
+        objectWillChange.send()
+    }
+    
     init() {
         // Initialize any required properties here
     }

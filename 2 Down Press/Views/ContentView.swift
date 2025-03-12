@@ -235,8 +235,13 @@ struct ContentView: View {
                                    let teeBox = course.teeBoxes.first(where: { $0.name == currentGame.teeBoxName }) {
                                     // Restore game state and navigate to scorecard
                                     ScorecardView(course: course, teeBox: teeBox)
+                                        .environmentObject(betManager)
+                                        .environmentObject(userProfile)
+                                        .environmentObject(gameStateManager)
                                         .onAppear {
+                                            // First restore the game state to BetManager
                                             gameStateManager.restoreGame(to: betManager)
+                                            // Then set the teeBox
                                             betManager.teeBox = teeBox
                                         }
                                 }

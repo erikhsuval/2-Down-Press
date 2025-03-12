@@ -16,7 +16,7 @@ struct ScorecardView: View {
     @State private var showMenu = false
     @State private var showBetCreation = false
     @State private var showPlayerSelection = false
-    @State private var selectedPlayerIndex = 0
+    @State private var selectedPlayerId: UUID? = nil
     @State private var scores: [UUID: [String]] = [:]
     @State private var showLeaderboard = false
     @State private var elapsedTime: TimeInterval = 0
@@ -101,6 +101,7 @@ struct ScorecardView: View {
                     playerScores: scores,
                     teeBox: teeBox,
                     betManager: betManager,
+                    selectedPlayerId: $selectedPlayerId,
                     updateScore: updateScore
                 )
                 ScorecardFooterView(
@@ -164,7 +165,7 @@ struct ScorecardView: View {
                 teeBox: teeBox,
                 players: players,
                 playerScores: scores,
-                currentPlayerIndex: $selectedPlayerIndex,
+                currentPlayerId: $selectedPlayerId,
                 onScoresImported: { importedScores, importedPlayers in
                     // Update local scores with imported scores
                     for (playerId, playerScores) in importedScores {
@@ -188,10 +189,22 @@ struct ScorecardView: View {
             if let savedGame = gameStateManager.currentGame,
                savedGame.courseId == course.id,
                savedGame.teeBoxName == teeBox.name {
+                // Initialize local state
                 scores = savedGame.scores
                 selectedPlayers = savedGame.players
-                betManager.playerScores = savedGame.scores
                 isPosted = savedGame.isCompleted
+                selectedPlayerId = savedGame.selectedPlayerId
+                
+                // Update BetManager state
+                gameStateManager.restoreGame(to: betManager)
+                betManager.teeBox = teeBox
+                
+                // If there are scores, the round has started
+                if !savedGame.scores.isEmpty {
+                    hasStartedRound = true
+                    isTimerRunning = true
+                    startTimer()
+                }
             }
         }
         .onChange(of: scores) { oldValue, newValue in
@@ -269,7 +282,8 @@ struct ScorecardView: View {
             players: players,
             scores: scores,
             betManager: betManager,
-            isCompleted: isPosted
+            isCompleted: isPosted,
+            selectedPlayerId: selectedPlayerId
         )
     }
     
@@ -378,9 +392,20 @@ private struct ScorecardContentView: View {
     let playerScores: [UUID: [String]]
     let teeBox: BetComponents.TeeBox
     let betManager: BetManager
-    @EnvironmentObject private var groupManager: GroupManager
-    @State private var selectedPlayerIndex = 0
+    @Binding var selectedPlayerId: UUID?
     let updateScore: (BetComponents.Player, Int, String) -> Void
+    @EnvironmentObject private var groupManager: GroupManager
+    @FocusState private var isScoreFieldFocused: Bool
+    
+    private var currentPlayer: BetComponents.Player {
+        guard let playerId = selectedPlayerId,
+              let player = players.first(where: { $0.id == playerId }) else { return players[0] }
+        return player
+    }
+    
+    private var currentPlayerScores: [String] {
+        playerScores[currentPlayer.id] ?? Array(repeating: "", count: 18)
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -390,11 +415,15 @@ private struct ScorecardContentView: View {
                     ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
                         PlayerButton(
                             player: player,
-                            isSelected: selectedPlayerIndex == index,
+                            isSelected: selectedPlayerId == player.id,
                             teamColor: getTeamColor(for: player, groupManager: groupManager)
                         )
                         .onTapGesture {
-                            selectedPlayerIndex = index
+                            if !isScoreFieldFocused {
+                                withAnimation {
+                                    selectedPlayerId = player.id
+                                }
+                            }
                         }
                     }
                 }
@@ -416,43 +445,32 @@ private struct ScorecardContentView: View {
             .padding(.horizontal)
             
             // Scorecard content
-            if selectedPlayerIndex < players.count {
-                let currentPlayer = players[selectedPlayerIndex]
-                let currentPlayerScores = playerScores[currentPlayer.id] ?? Array(repeating: "", count: 18)
+            VStack(spacing: 16) {
+                // Front 9
+                ScorecardGridView(
+                    holes: Array(teeBox.holes.prefix(9)),
+                    scores: Array(currentPlayerScores.prefix(9)),
+                    onScoreUpdate: { index, score in
+                        updateScore(currentPlayer, index, score)
+                    }
+                )
                 
-                VStack(spacing: 16) {
-                    // Front 9
-                    ScorecardGridView(
-                        holes: Array(teeBox.holes.prefix(9)),
-                        scores: Array(currentPlayerScores.prefix(9)),
-                        onScoreUpdate: { index, score in
-                            updateScore(currentPlayer, index, score)
-                        }
-                    )
-                    
-                    // Back 9
-                    ScorecardGridView(
-                        holes: Array(teeBox.holes.suffix(9)),
-                        scores: Array(currentPlayerScores.suffix(9)),
-                        onScoreUpdate: { index, score in
-                            updateScore(currentPlayer, index + 9, score)
-                        }
-                    )
-                    
-                    // Totals
-                    ScorecarTotalsView(
-                        holes: teeBox.holes,
-                        scores: currentPlayerScores
-                    )
-                }
-                .padding(.bottom)
+                // Back 9
+                ScorecardGridView(
+                    holes: Array(teeBox.holes.suffix(9)),
+                    scores: Array(currentPlayerScores.suffix(9)),
+                    onScoreUpdate: { index, score in
+                        updateScore(currentPlayer, index + 9, score)
+                    }
+                )
+                
+                // Totals
+                ScorecarTotalsView(
+                    holes: teeBox.holes,
+                    scores: currentPlayerScores
+                )
             }
-        }
-        .onChange(of: selectedPlayerIndex) { oldValue, newValue in
-            // Dismiss keyboard when switching players
-            DispatchQueue.main.async {
-                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-            }
+            .padding(.bottom)
         }
     }
     
@@ -626,7 +644,6 @@ struct ScorecardGridView: View {
     let holes: [BetComponents.HoleInfo]
     let scores: [String]
     let onScoreUpdate: (Int, String) -> Void
-    @State private var selectedHoleIndex: Int = 0
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -708,26 +725,14 @@ struct ScorecardGridView: View {
                         .foregroundColor(.white)
                     
                     ForEach(Array(holes.indices), id: \.self) { index in
-                        let score = scores[index]
                         ScoreDisplayView(
-                            score: score,
+                            score: scores[index],
                             par: holes[index].par,
                             scoreText: Binding(
-                                get: { score },
+                                get: { scores[index] },
                                 set: { onScoreUpdate(index, $0) }
-                            ),
-                            onNext: {
-                                if index < holes.count - 1 {
-                                    selectedHoleIndex = index + 1
-                                }
-                            },
-                            onPrevious: {
-                                if index > 0 {
-                                    selectedHoleIndex = index - 1
-                                }
-                            }
+                            )
                         )
-                        .frame(width: 80)
                     }
                 }
                 .padding(.vertical, 8)
@@ -743,6 +748,7 @@ struct ScorecardGridView: View {
             .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
             .padding(.horizontal)
         }
+        .scrollDismissesKeyboard(.immediately)
     }
 }
 
@@ -832,22 +838,11 @@ struct ScoreDisplayView: View {
     let score: String
     let par: Int
     @Binding var scoreText: String
-    @State private var showKeypad = false
-    @State private var tempScore: String
-    let onNext: () -> Void
-    let onPrevious: () -> Void
-    
-    init(score: String, par: Int, scoreText: Binding<String>, onNext: @escaping () -> Void, onPrevious: @escaping () -> Void) {
-        self.score = score
-        self.par = par
-        self._scoreText = scoreText
-        self._tempScore = State(initialValue: score)
-        self.onNext = onNext
-        self.onPrevious = onPrevious
-    }
+    @State private var showClearButton = false
+    @FocusState private var isFocused: Bool
     
     private var scoreInt: Int? {
-        Int(tempScore)
+        Int(score)
     }
     
     private func colorForScore(_ score: Int) -> Color {
@@ -858,69 +853,73 @@ struct ScoreDisplayView: View {
     }
     
     var body: some View {
-        Button(action: {
-            tempScore = score  // Initialize with current score
-            showKeypad = true
-        }) {
-            VStack(spacing: 4) {
-                // Score box with decorations
-                ZStack {
-                    // Base score box
+        ZStack {
+            // Score input field
+            TextField("", text: $scoreText)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+                .frame(width: 80, height: 50)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(scoreInt.map(colorForScore) ?? .primary)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.white)
-                        .frame(width: 80, height: 50)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                        )
-                    
-                    ZStack {
-                        // Score display
-                        if !tempScore.isEmpty {
-                            Text(tempScore)
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(scoreInt.map(colorForScore) ?? .primary)
-                            
-                            // Decorative shapes
-                            if let currentScore = scoreInt {
-                                if currentScore < par - 1 {
-                                    // Double circle for eagle or better
-                                    ZStack {
-                                        Circle()
-                                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                            .frame(width: 36, height: 36)
-                                        Circle()
-                                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                            .frame(width: 42, height: 42)
-                                    }
-                                } else if currentScore == par - 1 {
-                                    // Single circle for birdie
-                                    Circle()
-                                        .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                        .frame(width: 36, height: 36)
-                                } else if currentScore == par + 1 {
-                                    // Single square for bogey
-                                    Rectangle()
-                                        .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                        .frame(width: 36, height: 36)
-                                } else if currentScore == par + 2 {
-                                    // Double square for double bogey
-                                    ZStack {
-                                        Rectangle()
-                                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                            .frame(width: 36, height: 36)
-                                        Rectangle()
-                                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                                            .frame(width: 42, height: 42)
-                                    }
-                                }
-                            }
+                        .stroke(isFocused ? Color.primaryGreen : Color.gray.opacity(0.3), lineWidth: isFocused ? 2 : 1)
+                )
+                .focused($isFocused)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Clear") {
+                            scoreText = ""
+                        }
+                        .foregroundColor(.red)
+                        Button("Done") {
+                            isFocused = false
                         }
                     }
                 }
-                
-                // Emoji indicators below the score
-                if let currentScore = scoreInt {
+            
+            // Score decorations
+            if let currentScore = scoreInt {
+                if currentScore < par - 1 {
+                    // Double circle for eagle or better
+                    ZStack {
+                        Circle()
+                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                            .frame(width: 36, height: 36)
+                        Circle()
+                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                            .frame(width: 42, height: 42)
+                    }
+                } else if currentScore == par - 1 {
+                    // Single circle for birdie
+                    Circle()
+                        .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                        .frame(width: 36, height: 36)
+                } else if currentScore == par + 1 {
+                    // Single square for bogey
+                    Rectangle()
+                        .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                        .frame(width: 36, height: 36)
+                } else if currentScore == par + 2 {
+                    // Double square for double bogey
+                    ZStack {
+                        Rectangle()
+                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                            .frame(width: 36, height: 36)
+                        Rectangle()
+                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
+                            .frame(width: 42, height: 42)
+                    }
+                }
+            }
+            
+            // Emoji indicators
+            if let currentScore = scoreInt {
+                VStack {
+                    Spacer()
                     if currentScore == 1 {
                         Text("⭐️")
                             .font(.caption)
@@ -932,31 +931,8 @@ struct ScoreDisplayView: View {
                             .font(.caption)
                     }
                 }
+                .padding(.bottom, 4)
             }
-        }
-        .sheet(isPresented: $showKeypad) {
-            CustomNumberKeypad(
-                text: Binding(
-                    get: { tempScore },
-                    set: { newValue in
-                        tempScore = newValue
-                        scoreText = newValue  // Update the parent's binding
-                    }
-                ),
-                onNext: {
-                    onNext()
-                    showKeypad = false
-                },
-                onPrevious: {
-                    onPrevious()
-                    showKeypad = false
-                }
-            )
-            .presentationDetents([.height(320)])
-            .presentationBackground(.clear)
-        }
-        .onChange(of: score) { oldValue, newValue in
-            tempScore = newValue
         }
     }
 }
@@ -969,30 +945,30 @@ struct CustomNumberKeypad: View {
     @State private var inactivityTimer: Timer?
     
     var body: some View {
-        VStack(spacing: 12) {  // Reduced spacing
-            HStack(spacing: 20) {  // Reduced spacing
+        VStack(spacing: 12) {
+            HStack(spacing: 20) {
                 ForEach(1...3, id: \.self) { number in
                     numberButton(String(number))
                 }
             }
-            HStack(spacing: 20) {  // Reduced spacing
+            HStack(spacing: 20) {
                 ForEach(4...6, id: \.self) { number in
                     numberButton(String(number))
                 }
             }
-            HStack(spacing: 20) {  // Reduced spacing
+            HStack(spacing: 20) {
                 ForEach(7...9, id: \.self) { number in
                     numberButton(String(number))
                 }
             }
-            HStack(spacing: 20) {  // Reduced spacing
+            HStack(spacing: 20) {
                 Button(action: {
                     onPrevious()
                     resetTimer()
                 }) {
                     Image(systemName: "arrow.left")
                         .font(.title2)
-                        .frame(width: 44, height: 44)  // Slightly smaller buttons
+                        .frame(width: 44, height: 44)
                         .foregroundColor(.white)
                         .background(Color.primaryGreen)
                         .clipShape(Circle())
@@ -1004,18 +980,18 @@ struct CustomNumberKeypad: View {
                 }) {
                     Image(systemName: "arrow.right")
                         .font(.title2)
-                        .frame(width: 44, height: 44)  // Slightly smaller buttons
+                        .frame(width: 44, height: 44)
                         .foregroundColor(.white)
                         .background(Color.primaryGreen)
                         .clipShape(Circle())
                 }
             }
-            HStack(spacing: 20) {  // Reduced spacing
+            HStack(spacing: 20) {
                 numberButton("X")
             }
         }
-        .padding(16)  // Reduced padding
-        .background(Color.white.opacity(0.95))  // Semi-transparent background
+        .padding(16)
+        .background(Color.white.opacity(0.95))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.15), radius: 5, y: 2)
         .onAppear {
@@ -1028,18 +1004,23 @@ struct CustomNumberKeypad: View {
     
     private func numberButton(_ number: String) -> some View {
         Button(action: {
-            text = number
+            if number == "X" {
+                text = ""
+            } else {
+                text = number
+            }
             resetTimer()
+            
+            // Auto-dismiss after setting the score
             if number != "X" {
-                // Auto-dismiss after 0.5 seconds for number entries
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     dismiss()
                 }
             }
         }) {
             Text(number)
-                .font(.title2.bold())  // Slightly smaller font
-                .frame(width: 44, height: 44)  // Slightly smaller buttons
+                .font(.title2.bold())
+                .frame(width: 44, height: 44)
                 .foregroundColor(number == "X" ? .red : .primary)
                 .background(Color.gray.opacity(0.1))
                 .clipShape(Circle())
@@ -1230,7 +1211,7 @@ struct LeaderboardView: View {
     let teeBox: BetComponents.TeeBox
     let players: [BetComponents.Player]
     let playerScores: [UUID: [String]]
-    @Binding var currentPlayerIndex: Int
+    @Binding var currentPlayerId: UUID?
     let onScoresImported: ([UUID: [String]], [BetComponents.Player]) -> Void
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var betManager: BetManager
@@ -1379,7 +1360,7 @@ struct LeaderboardView: View {
         // Update group scores in BetManager
         if let groupIndex = groupManager.currentGroupIndex {
             betManager.mergeGroupScores()
-            betManager.updateGroupScores(playerScores, forGroup: groupIndex)
+            betManager.updateGroupScores(importedScores, forGroup: groupIndex)
         }
     }
 }
@@ -1865,30 +1846,30 @@ struct ScoreDecorationModifier: ViewModifier {
                     ZStack {
                         Circle()
                             .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 30, height: 30)
+                            .frame(width: 36, height: 36)
                         Circle()
                             .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 42, height: 42)
                     }
                 } else if score == par - 1 {
                     // Single circle for birdie
                     Circle()
                         .stroke(colorForScore(score), lineWidth: 1.5)
-                        .frame(width: 30, height: 30)
+                        .frame(width: 36, height: 36)
                 } else if score == par + 1 {
                     // Single square for bogey
                     Rectangle()
                         .stroke(colorForScore(score), lineWidth: 1.5)
-                        .frame(width: 30, height: 30)
+                        .frame(width: 36, height: 36)
                 } else if score == par + 2 {
                     // Double square for double bogey
                     ZStack {
                         Rectangle()
                             .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 30, height: 30)
+                            .frame(width: 36, height: 36)
                         Rectangle()
                             .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 42, height: 42)
                     }
                 }
             }
@@ -2142,4 +2123,5 @@ private struct LeaderboardFooterView: View {
         }
     }
 }
+
 

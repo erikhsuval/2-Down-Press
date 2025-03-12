@@ -1,88 +1,67 @@
 import Foundation
 import BetComponents
 
-struct GameState: Codable {
-    let courseId: UUID
-    let courseName: String
-    let teeBoxName: String
-    let players: [BetComponents.Player]
-    let scores: [UUID: [String]]
-    let timestamp: Date
-    let bets: SavedBets
-    var isCompleted: Bool
+public struct GameState: Codable {
+    public let courseId: UUID
+    public let courseName: String
+    public let teeBoxName: String
+    public let players: [BetComponents.Player]
+    public let scores: [UUID: [String]]
+    public let timestamp: Date
+    public let bets: SavedBets
+    public let groups: [[BetComponents.Player]]
+    public let currentGroupIndex: Int?
+    public let isGroupLeader: Bool
+    public var isCompleted: Bool
+    public let selectedPlayerId: UUID?
     
-    struct SavedBets: Codable {
-        let individualBets: [BetComponents.IndividualMatchBet]
-        let fourBallBets: [BetComponents.FourBallMatchBet]
-        let alabamaBets: [BetComponents.AlabamaBet]
-        let doDaBets: [BetComponents.DoDaBet]
-        let skinsBets: [BetComponents.SkinsBet]
+    public struct SavedBets: Codable {
+        public let individualBets: [BetComponents.IndividualMatchBet]
+        public let fourBallBets: [BetComponents.FourBallMatchBet]
+        public let alabamaBets: [BetComponents.AlabamaBet]
+        public let doDaBets: [BetComponents.DoDaBet]
+        public let skinsBets: [BetComponents.SkinsBet]
+        
+        public init(
+            individualBets: [BetComponents.IndividualMatchBet],
+            fourBallBets: [BetComponents.FourBallMatchBet],
+            alabamaBets: [BetComponents.AlabamaBet],
+            doDaBets: [BetComponents.DoDaBet],
+            skinsBets: [BetComponents.SkinsBet]
+        ) {
+            self.individualBets = individualBets
+            self.fourBallBets = fourBallBets
+            self.alabamaBets = alabamaBets
+            self.doDaBets = doDaBets
+            self.skinsBets = skinsBets
+        }
     }
-}
-
-class GameStateManager: ObservableObject {
-    @Published var currentGame: GameState?
-    private let defaults = UserDefaults.standard
-    private let currentGameKey = "currentGameState"
     
-    init() {
-        loadCurrentGame()
-    }
-    
-    func saveCurrentGame(
-        course: GolfCourse,
-        teeBox: BetComponents.TeeBox,
+    public init(
+        courseId: UUID,
+        courseName: String,
+        teeBoxName: String,
         players: [BetComponents.Player],
         scores: [UUID: [String]],
-        betManager: BetManager,
-        isCompleted: Bool = false
+        timestamp: Date,
+        bets: SavedBets,
+        groups: [[BetComponents.Player]],
+        currentGroupIndex: Int?,
+        isGroupLeader: Bool,
+        isCompleted: Bool,
+        selectedPlayerId: UUID?
     ) {
-        let gameState = GameState(
-            courseId: course.id,
-            courseName: course.name,
-            teeBoxName: teeBox.name,
-            players: players,
-            scores: scores,
-            timestamp: Date(),
-            bets: GameState.SavedBets(
-                individualBets: betManager.individualBets,
-                fourBallBets: betManager.fourBallBets,
-                alabamaBets: betManager.alabamaBets,
-                doDaBets: betManager.doDaBets,
-                skinsBets: betManager.skinsBets
-            ),
-            isCompleted: isCompleted
-        )
-        
-        if let encoded = try? JSONEncoder().encode(gameState) {
-            defaults.set(encoded, forKey: currentGameKey)
-            currentGame = gameState
-        }
-    }
-    
-    func loadCurrentGame() {
-        if let savedGame = defaults.data(forKey: currentGameKey),
-           let gameState = try? JSONDecoder().decode(GameState.self, from: savedGame) {
-            currentGame = gameState
-        }
-    }
-    
-    func clearCurrentGame() {
-        defaults.removeObject(forKey: currentGameKey)
-        currentGame = nil
-    }
-    
-    func restoreGame(to betManager: BetManager) {
-        guard let game = currentGame else { return }
-        
-        // Restore all bets
-        betManager.individualBets = game.bets.individualBets
-        betManager.fourBallBets = game.bets.fourBallBets
-        betManager.alabamaBets = game.bets.alabamaBets
-        betManager.doDaBets = game.bets.doDaBets
-        betManager.skinsBets = game.bets.skinsBets
-        
-        // Restore scores
-        betManager.playerScores = game.scores
+        self.courseId = courseId
+        self.courseName = courseName
+        self.teeBoxName = teeBoxName
+        self.players = players
+        self.scores = scores
+        self.timestamp = timestamp
+        self.bets = bets
+        self.groups = groups
+        self.currentGroupIndex = currentGroupIndex
+        self.isGroupLeader = isGroupLeader
+        self.isCompleted = isCompleted
+        self.selectedPlayerId = selectedPlayerId
     }
 } 
