@@ -404,31 +404,76 @@ private struct ScorecardContentView: View {
     }
     
     private var currentPlayerScores: [String] {
-        playerScores[currentPlayer.id] ?? Array(repeating: "", count: 18)
+        guard let playerId = selectedPlayerId,
+              let scores = playerScores[playerId] else {
+            return Array(repeating: "", count: 18)
+        }
+        return scores
+    }
+    
+    private var sortedPlayers: [BetComponents.Player] {
+        // Get all groups
+        let allGroups = groupManager.groups
+        
+        // Create a dictionary to store player indices for stable sorting
+        var playerIndices: [UUID: Int] = [:]
+        
+        // First, add all players from groups in order
+        var sorted: [BetComponents.Player] = []
+        for (groupIndex, group) in allGroups.enumerated() {
+            for (playerIndex, player) in group.enumerated() {
+                sorted.append(player)
+                playerIndices[player.id] = groupIndex * 100 + playerIndex // Use group index as major sort key
+            }
+        }
+        
+        // Then add any remaining players that aren't in any group
+        let remainingPlayers = players.filter { player in
+            !sorted.contains { $0.id == player.id }
+        }
+        for (index, player) in remainingPlayers.enumerated() {
+            sorted.append(player)
+            playerIndices[player.id] = allGroups.count * 100 + index
+        }
+        
+        // Sort by the stable indices we created
+        return sorted.sorted { player1, player2 in
+            playerIndices[player1.id, default: Int.max] < playerIndices[player2.id, default: Int.max]
+        }
     }
     
     var body: some View {
         VStack(spacing: 0) {
             // Player carousel
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(Array(players.enumerated()), id: \.element.id) { index, player in
-                        PlayerButton(
-                            player: player,
-                            isSelected: selectedPlayerId == player.id,
-                            teamColor: getTeamColor(for: player, groupManager: groupManager)
-                        )
-                        .onTapGesture {
-                            if !isScoreFieldFocused {
-                                withAnimation {
-                                    selectedPlayerId = player.id
+            ScrollViewReader { scrollView in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(sortedPlayers, id: \.id) { player in
+                            PlayerButton(
+                                player: player,
+                                isSelected: selectedPlayerId == player.id,
+                                teamColor: getTeamColor(for: player, groupManager: groupManager)
+                            )
+                            .id(player.id)
+                            .onTapGesture {
+                                if !isScoreFieldFocused {
+                                    withAnimation {
+                                        selectedPlayerId = player.id
+                                    }
                                 }
                             }
                         }
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
+                .onChange(of: selectedPlayerId) { oldValue, newValue in
+                    if let id = newValue {
+                        withAnimation {
+                            scrollView.scrollTo(id, anchor: .center)
+                        }
+                    }
+                }
             }
             .background(Color.primaryGreen.opacity(0.2))
             
@@ -842,7 +887,7 @@ struct ScoreDisplayView: View {
     @FocusState private var isFocused: Bool
     
     private var scoreInt: Int? {
-        Int(score)
+        score == "❌" ? nil : Int(score)
     }
     
     private func colorForScore(_ score: Int) -> Color {
@@ -860,7 +905,7 @@ struct ScoreDisplayView: View {
                 .multilineTextAlignment(.center)
                 .frame(width: 80, height: 50)
                 .font(.system(size: 20, weight: .bold))
-                .foregroundColor(scoreInt.map(colorForScore) ?? .primary)
+                .foregroundColor(scoreText == "❌" ? .red : (Int(scoreText).map(colorForScore) ?? .primary))
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(
@@ -869,20 +914,30 @@ struct ScoreDisplayView: View {
                 )
                 .focused($isFocused)
                 .toolbar {
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button("Clear") {
-                            scoreText = ""
-                        }
-                        .foregroundColor(.red)
-                        Button("Done") {
-                            isFocused = false
+                    if isFocused {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            HStack {
+                                Button("❌") {
+                                    scoreText = "❌"
+                                    isFocused = false
+                                }
+                                .foregroundColor(.red)
+                                Spacer()
+                                Button("Clear") {
+                                    scoreText = ""
+                                }
+                                .foregroundColor(.red)
+                                Button("Done") {
+                                    isFocused = false
+                                }
+                                .foregroundColor(.primaryGreen)
+                            }
                         }
                     }
                 }
             
             // Score decorations
-            if let currentScore = scoreInt {
+            if let currentScore = Int(scoreText), scoreText != "❌" {
                 if currentScore < par - 1 {
                     // Double circle for eagle or better
                     ZStack {
@@ -917,7 +972,7 @@ struct ScoreDisplayView: View {
             }
             
             // Emoji indicators
-            if let currentScore = scoreInt {
+            if let currentScore = Int(scoreText), scoreText != "❌" {
                 VStack {
                     Spacer()
                     if currentScore == 1 {
@@ -932,110 +987,12 @@ struct ScoreDisplayView: View {
                     }
                 }
                 .padding(.bottom, 4)
+            } else if scoreText == "❌" {
+                Text("❌")
+                    .font(.system(size: 24))
+                    .foregroundColor(.red)
             }
         }
-    }
-}
-
-struct CustomNumberKeypad: View {
-    @Binding var text: String
-    let onNext: () -> Void
-    let onPrevious: () -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var inactivityTimer: Timer?
-    
-    var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 20) {
-                ForEach(1...3, id: \.self) { number in
-                    numberButton(String(number))
-                }
-            }
-            HStack(spacing: 20) {
-                ForEach(4...6, id: \.self) { number in
-                    numberButton(String(number))
-                }
-            }
-            HStack(spacing: 20) {
-                ForEach(7...9, id: \.self) { number in
-                    numberButton(String(number))
-                }
-            }
-            HStack(spacing: 20) {
-                Button(action: {
-                    onPrevious()
-                    resetTimer()
-                }) {
-                    Image(systemName: "arrow.left")
-                        .font(.title2)
-                        .frame(width: 44, height: 44)
-                        .foregroundColor(.white)
-                        .background(Color.primaryGreen)
-                        .clipShape(Circle())
-                }
-                numberButton("0")
-                Button(action: {
-                    onNext()
-                    resetTimer()
-                }) {
-                    Image(systemName: "arrow.right")
-                        .font(.title2)
-                        .frame(width: 44, height: 44)
-                        .foregroundColor(.white)
-                        .background(Color.primaryGreen)
-                        .clipShape(Circle())
-                }
-            }
-            HStack(spacing: 20) {
-                numberButton("X")
-            }
-        }
-        .padding(16)
-        .background(Color.white.opacity(0.95))
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.15), radius: 5, y: 2)
-        .onAppear {
-            startTimer()
-        }
-        .onDisappear {
-            inactivityTimer?.invalidate()
-        }
-    }
-    
-    private func numberButton(_ number: String) -> some View {
-        Button(action: {
-            if number == "X" {
-                text = ""
-            } else {
-                text = number
-            }
-            resetTimer()
-            
-            // Auto-dismiss after setting the score
-            if number != "X" {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    dismiss()
-                }
-            }
-        }) {
-            Text(number)
-                .font(.title2.bold())
-                .frame(width: 44, height: 44)
-                .foregroundColor(number == "X" ? .red : .primary)
-                .background(Color.gray.opacity(0.1))
-                .clipShape(Circle())
-        }
-    }
-    
-    private func startTimer() {
-        inactivityTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { _ in
-            dismiss()
-        }
-    }
-    
-    private func resetTimer() {
-        inactivityTimer?.invalidate()
-        startTimer()
     }
 }
 
