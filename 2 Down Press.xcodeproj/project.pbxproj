@@ -8,11 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		5218516A2D32F07D009D4B4A /* buildServer.json in Resources */ = {isa = PBXBuildFile; fileRef = 521851692D32F07D009D4B4A /* buildServer.json */; };
-		523763A32D6CB94900D14C54 /* BetComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 523763A22D6CB94900D14C54 /* BetComponents */; };
-		523763A62D6CB99A00D14C54 /* BetComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 523763A52D6CB99A00D14C54 /* BetComponents */; };
-		523763AD2D6CBD1000D14C54 /* BetComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 523763AC2D6CBD1000D14C54 /* BetComponents */; };
 		525EC7862D47359E0017BF10 /* .swiftlint.yml in Resources */ = {isa = PBXBuildFile; fileRef = 525EC7852D4734FA0017BF10 /* .swiftlint.yml */; };
-		52C70AFA2D7D039A00005D6E /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = 52C70AF92D7D039A00005D6E /* CodeScanner */; };
+		52724C592D8232AA00D076F0 /* BetComponents in Frameworks */ = {isa = PBXBuildFile; productRef = 52724C582D8232AA00D076F0 /* BetComponents */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,9 +42,22 @@
 		52FC4A242D6BDAA700C62899 /* 2 Down Press.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "2 Down Press.xcodeproj"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5287DE822D82266900672BBB /* Exceptions for "2 Down Press" folder in "2 Down Press" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Preview Content/Preview Assets.xcassets",
+			);
+			target = 524862022D32CE8900C1412E /* 2 Down Press */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		524862052D32CE8900C1412E /* 2 Down Press */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5287DE822D82266900672BBB /* Exceptions for "2 Down Press" folder in "2 Down Press" target */,
+			);
 			path = "2 Down Press";
 			sourceTree = "<group>";
 		};
@@ -68,10 +78,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				52C70AFA2D7D039A00005D6E /* CodeScanner in Frameworks */,
-				523763A62D6CB99A00D14C54 /* BetComponents in Frameworks */,
-				523763AD2D6CBD1000D14C54 /* BetComponents in Frameworks */,
-				523763A32D6CB94900D14C54 /* BetComponents in Frameworks */,
+				52724C592D8232AA00D076F0 /* BetComponents in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -172,18 +179,14 @@
 			buildRules = (
 			);
 			dependencies = (
-				52C70AFE2D7D378800005D6E /* PBXTargetDependency */,
-				523763AA2D6CBCF200D14C54 /* PBXTargetDependency */,
+				52724C552D822DD900D076F0 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				524862052D32CE8900C1412E /* 2 Down Press */,
 			);
 			name = "2 Down Press";
 			packageProductDependencies = (
-				523763A22D6CB94900D14C54 /* BetComponents */,
-				523763A52D6CB99A00D14C54 /* BetComponents */,
-				523763AC2D6CBD1000D14C54 /* BetComponents */,
-				52C70AF92D7D039A00005D6E /* CodeScanner */,
+				52724C582D8232AA00D076F0 /* BetComponents */,
 			);
 			productName = "2 Down Press";
 			productReference = 524862032D32CE8900C1412E /* 2 Down Press.app */;
@@ -268,8 +271,7 @@
 			mainGroup = 524861FA2D32CE8900C1412E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				523763AB2D6CBD1000D14C54 /* XCLocalSwiftPackageReference "2 Down Press/BetComponents" */,
-				52C70AF82D7D039A00005D6E /* XCRemoteSwiftPackageReference "CodeScanner" */,
+				5287DE852D8229EE00672BBB /* XCLocalSwiftPackageReference "2 Down Press/BetComponents" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 524862042D32CE8900C1412E /* Products */;
@@ -377,10 +379,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		523763AA2D6CBCF200D14C54 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			productRef = 523763A92D6CBCF200D14C54 /* BetComponents */;
-		};
 		524862152D32CE8A00C1412E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 524862022D32CE8900C1412E /* 2 Down Press */;
@@ -391,9 +389,9 @@
 			target = 524862022D32CE8900C1412E /* 2 Down Press */;
 			targetProxy = 5248621E2D32CE8A00C1412E /* PBXContainerItemProxy */;
 		};
-		52C70AFE2D7D378800005D6E /* PBXTargetDependency */ = {
+		52724C552D822DD900D076F0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = 52C70AFD2D7D378800005D6E /* CodeScanner */;
+			productRef = 52724C542D822DD900D076F0 /* BetComponents */;
 		};
 /* End PBXTargetDependency section */
 
@@ -524,7 +522,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_ASSET_PATHS = "\"2 Down Press/Preview Content\"";
 				DEVELOPMENT_TEAM = 9LD4B84GDT;
 				ENABLE_PREVIEWS = YES;
@@ -557,7 +555,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_ASSET_PATHS = "\"2 Down Press/Preview Content\"";
 				DEVELOPMENT_TEAM = 9LD4B84GDT;
 				ENABLE_PREVIEWS = YES;
@@ -587,6 +585,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9LD4B84GDT;
@@ -595,7 +594,8 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Matty-Game.--Down-PressTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/2 Down Press.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/2 Down Press";
@@ -606,6 +606,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9LD4B84GDT;
@@ -614,7 +615,8 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Matty-Game.--Down-PressTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/2 Down Press.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/2 Down Press";
@@ -641,6 +643,8 @@
 		5248622F2D32CE8A00C1412E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9LD4B84GDT;
@@ -648,6 +652,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Matty-Game.--Down-PressUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -697,49 +702,21 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		523763AB2D6CBD1000D14C54 /* XCLocalSwiftPackageReference "2 Down Press/BetComponents" */ = {
+		5287DE852D8229EE00672BBB /* XCLocalSwiftPackageReference "2 Down Press/BetComponents" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "2 Down Press/BetComponents";
 		};
 /* End XCLocalSwiftPackageReference section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		52C70AF82D7D039A00005D6E /* XCRemoteSwiftPackageReference "CodeScanner" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/twostraws/CodeScanner";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.5.2;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
-		523763A22D6CB94900D14C54 /* BetComponents */ = {
+		52724C542D822DD900D076F0 /* BetComponents */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 5287DE852D8229EE00672BBB /* XCLocalSwiftPackageReference "2 Down Press/BetComponents" */;
 			productName = BetComponents;
 		};
-		523763A52D6CB99A00D14C54 /* BetComponents */ = {
+		52724C582D8232AA00D076F0 /* BetComponents */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = BetComponents;
-		};
-		523763A92D6CBCF200D14C54 /* BetComponents */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = BetComponents;
-		};
-		523763AC2D6CBD1000D14C54 /* BetComponents */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = BetComponents;
-		};
-		52C70AF92D7D039A00005D6E /* CodeScanner */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 52C70AF82D7D039A00005D6E /* XCRemoteSwiftPackageReference "CodeScanner" */;
-			productName = CodeScanner;
-		};
-		52C70AFD2D7D378800005D6E /* CodeScanner */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 52C70AF82D7D039A00005D6E /* XCRemoteSwiftPackageReference "CodeScanner" */;
-			productName = CodeScanner;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

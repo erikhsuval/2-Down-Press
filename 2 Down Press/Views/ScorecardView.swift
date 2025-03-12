@@ -2,7 +2,6 @@ import SwiftUI
 import BetComponents
 import AVFoundation
 import CoreImage.CIFilterBuiltins
-import CodeScanner
 
 private extension View {
     func standardHorizontalPadding() -> some View {
@@ -1892,24 +1891,8 @@ struct QRScannerView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        CodeScannerView(
-            codeTypes: [.qr],
-            scanMode: .once,
-            showViewfinder: true,
-            simulatedData: "SIMULATED",
-            completion: handleScan
-        )
-        .edgesIgnoringSafeArea(.all)
-    }
-    
-    private func handleScan(result: Result<ScanResult, ScanError>) {
-        switch result {
-        case .success(let result):
-            scannedCode = result.string
-            dismiss()
-        case .failure(let error):
-            print("Scanning failed: \(error.localizedDescription)")
-        }
+        Text("QR Scanner temporarily unavailable")
+            .padding()
     }
 }
 
