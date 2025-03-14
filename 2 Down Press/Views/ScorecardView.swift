@@ -39,11 +39,12 @@ struct ScorecardView: View {
     private var players: [BetComponents.Player] {
         var allPlayers = Set<BetComponents.Player>()
         
-        // Add selected players
+        // Add selected players first to maintain order
         allPlayers.formUnion(selectedPlayers)
         
-        // Add current user if available
-        if let currentUser = userProfile.currentUser {
+        // Add current user if available and not already included
+        if let currentUser = userProfile.currentUser,
+           !allPlayers.contains(where: { $0.id == currentUser.id }) {
             allPlayers.insert(currentUser)
         }
         
@@ -85,134 +86,136 @@ struct ScorecardView: View {
     }
     
     public var body: some View {
-        ZStack {
-            VStack(spacing: 0) {
-                ScorecardHeaderView(
-                    course: course,
-                    showMenu: $showMenu,
-                    showPlayerSelection: $showPlayerSelection,
-                    showBetCreation: $showBetCreation,
-                    showLeaderboard: $showLeaderboard
-                )
-                ScorecardContentView(
-                    players: players,
-                    expandedPlayers: $expandedPlayers,
-                    playerScores: scores,
-                    teeBox: teeBox,
-                    betManager: betManager,
-                    selectedPlayerId: $selectedPlayerId,
-                    updateScore: updateScore
-                )
-                ScorecardFooterView(
-                    players: players,
-                    playerScores: scores,
-                    teeBox: teeBox,
-                    betManager: betManager,
-                    isPosted: $isPosted,
-                    showPostConfirmation: $showPostConfirmation,
-                    showUnpostConfirmation: $showUnpostConfirmation
-                )
-            }
-        }
-        .edgesIgnoringSafeArea(.bottom)
-        .overlay(PostAnimationOverlay(showPostAnimation: $showPostAnimation))
-        .alert("Post Round", isPresented: $showPostConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Post") {
-                // Merge all group scores before posting
-                betManager.mergeGroupScores()
-                
-                // Update scores and teeBox in BetManager
-                betManager.updateScoresAndTeeBox(scores, teeBox)
-                
-                withAnimation {
-                    showPostAnimation = true
-                    showPostConfirmation = false
+        NavigationStack {
+            ZStack {
+                VStack(spacing: 0) {
+                    ScorecardHeaderView(
+                        course: course,
+                        showMenu: $showMenu,
+                        showPlayerSelection: $showPlayerSelection,
+                        showBetCreation: $showBetCreation,
+                        showLeaderboard: $showLeaderboard
+                    )
+                    ScorecardContentView(
+                        players: players,
+                        expandedPlayers: $expandedPlayers,
+                        playerScores: scores,
+                        teeBox: teeBox,
+                        betManager: betManager,
+                        selectedPlayerId: $selectedPlayerId,
+                        updateScore: updateScore
+                    )
+                    ScorecardFooterView(
+                        players: players,
+                        playerScores: scores,
+                        teeBox: teeBox,
+                        betManager: betManager,
+                        isPosted: $isPosted,
+                        showPostConfirmation: $showPostConfirmation,
+                        showUnpostConfirmation: $showUnpostConfirmation
+                    )
                 }
-                // Dismiss the animation after 1.5 seconds and return to scorecard
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            }
+            .edgesIgnoringSafeArea(.bottom)
+            .overlay(PostAnimationOverlay(showPostAnimation: $showPostAnimation))
+            .alert("Post Round", isPresented: $showPostConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Post") {
+                    // Merge all group scores before posting
+                    betManager.mergeGroupScores()
+                    
+                    // Update scores and teeBox in BetManager
+                    betManager.updateScoresAndTeeBox(scores, teeBox)
+                    
                     withAnimation {
-                        showPostAnimation = false
+                        showPostAnimation = true
                         showPostConfirmation = false
                     }
-                }
-            }
-        } message: {
-            Text("This will finalize the scorecard and update The Sheet. Continue?")
-        }
-        .navigationBarBackButtonHidden(true)
-        .navigationBarHidden(true)
-        .sheet(isPresented: $showPlayerSelection) {
-            PlayerSelectionView(selectedPlayers: $selectedPlayers)
-                .onDisappear {
-                    // Initialize scores for newly added players
-                    for player in selectedPlayers {
-                        initializeScores(for: player.id)
-                    }
-                }
-        }
-        .sheet(isPresented: $showMenu) {
-            SideMenuView(
-                isShowing: $showMenu,
-                showPlayerList: $showPlayerSelection,
-                showFourBallMatchSetup: .constant(false)
-            )
-        }
-        .sheet(isPresented: $showLeaderboard) {
-            LeaderboardView(
-                course: course,
-                teeBox: teeBox,
-                players: players,
-                playerScores: scores,
-                currentPlayerId: $selectedPlayerId,
-                onScoresImported: { importedScores, importedPlayers in
-                    // Update local scores with imported scores
-                    for (playerId, playerScores) in importedScores {
-                        scores[playerId] = playerScores
-                    }
-                    
-                    // Add any new players
-                    for player in importedPlayers {
-                        if !selectedPlayers.contains(where: { $0.id == player.id }) {
-                            selectedPlayers.append(player)
+                    // Dismiss the animation after 1.5 seconds and return to scorecard
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        withAnimation {
+                            showPostAnimation = false
+                            showPostConfirmation = false
                         }
                     }
                 }
-            )
-        }
-        .sheet(isPresented: $showBetCreation) {
-            BetCreationView()
-        }
-        .onAppear {
-            // If there's a saved game, restore it
-            if let savedGame = gameStateManager.currentGame,
-               savedGame.courseId == course.id,
-               savedGame.teeBoxName == teeBox.name {
-                // Initialize local state
-                scores = savedGame.scores
-                selectedPlayers = savedGame.players
-                isPosted = savedGame.isCompleted
-                selectedPlayerId = savedGame.selectedPlayerId
-                
-                // Update BetManager state
-                gameStateManager.restoreGame(to: betManager)
-                betManager.teeBox = teeBox
-                
-                // If there are scores, the round has started
-                if !savedGame.scores.isEmpty {
-                    hasStartedRound = true
-                    isTimerRunning = true
-                    startTimer()
+            } message: {
+                Text("This will finalize the scorecard and update The Sheet. Continue?")
+            }
+            .navigationBarBackButtonHidden(true)
+            .navigationBarHidden(true)
+            .sheet(isPresented: $showPlayerSelection) {
+                PlayerSelectionView(selectedPlayers: $selectedPlayers)
+                    .onDisappear {
+                        // Initialize scores for newly added players
+                        for player in selectedPlayers {
+                            initializeScores(for: player.id)
+                        }
+                    }
+            }
+            .sheet(isPresented: $showMenu) {
+                SideMenuView(
+                    isShowing: $showMenu,
+                    showPlayerList: $showPlayerSelection,
+                    showFourBallMatchSetup: .constant(false)
+                )
+            }
+            .sheet(isPresented: $showLeaderboard) {
+                LeaderboardView(
+                    course: course,
+                    teeBox: teeBox,
+                    players: players,
+                    playerScores: scores,
+                    currentPlayerId: $selectedPlayerId,
+                    onScoresImported: { importedScores, importedPlayers in
+                        // Update local scores with imported scores
+                        for (playerId, playerScores) in importedScores {
+                            scores[playerId] = playerScores
+                        }
+                        
+                        // Add any new players
+                        for player in importedPlayers {
+                            if !selectedPlayers.contains(where: { $0.id == player.id }) {
+                                selectedPlayers.append(player)
+                            }
+                        }
+                    }
+                )
+            }
+            .sheet(isPresented: $showBetCreation) {
+                BetCreationView()
+            }
+            .onAppear {
+                // If there's a saved game, restore it
+                if let savedGame = gameStateManager.currentGame,
+                   savedGame.courseId == course.id,
+                   savedGame.teeBoxName == teeBox.name {
+                    // Initialize local state
+                    scores = savedGame.scores
+                    selectedPlayers = savedGame.players
+                    isPosted = savedGame.isCompleted
+                    selectedPlayerId = savedGame.selectedPlayerId
+                    
+                    // Update BetManager state
+                    gameStateManager.restoreGame(to: betManager)
+                    betManager.teeBox = teeBox
+                    
+                    // If there are scores, the round has started
+                    if !savedGame.scores.isEmpty {
+                        hasStartedRound = true
+                        isTimerRunning = true
+                        startTimer()
+                    }
                 }
             }
-        }
-        .onChange(of: scores) { oldValue, newValue in
-            // Save game state whenever scores change
-            saveGameState()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-            // Save game state when app goes to background
-            saveGameState()
+            .onChange(of: scores) { oldValue, newValue in
+                // Save game state whenever scores change
+                saveGameState()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                // Save game state when app goes to background
+                saveGameState()
+            }
         }
     }
     
@@ -223,13 +226,6 @@ struct ScorecardView: View {
     }
     
     private func updateScore(for player: BetComponents.Player, at index: Int, with score: String) {
-        // Only allow score updates if the player is in the current group
-        guard let currentGroup = groupManager.currentGroup,
-              let currentUser = userProfile.currentUser,
-              currentGroup.contains(where: { $0.id == currentUser.id }) else {
-            return
-        }
-
         var playerScores = scores[player.id] ?? Array(repeating: "", count: 18)
         playerScores[index] = score
         scores[player.id] = playerScores
@@ -787,12 +783,39 @@ struct ScorecardGridView: View {
                         endPoint: .bottom
                     )
                 )
+                
+                // Emoji row
+                HStack(spacing: 1) {
+                    Text("")
+                        .frame(width: 80)
+                    
+                    ForEach(Array(holes.indices), id: \.self) { index in
+                        if let score = Int(scores[index]),
+                           let emoji = emojiForScore(score, par: holes[index].par) {
+                            Text(emoji)
+                                .font(.system(size: 14))
+                                .frame(width: 80)
+                        } else {
+                            Text("")
+                                .frame(width: 80)
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+                .background(Color.white)
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
             .padding(.horizontal)
         }
         .scrollDismissesKeyboard(.immediately)
+    }
+    
+    private func emojiForScore(_ score: Int, par: Int) -> String? {
+        if score == 1 { return "⭐️" }  // Score of 1
+        if score == 2 { return "✌️" }  // Score of 2
+        if score > par + 2 { return "💩" }  // Triple bogey or worse
+        return nil
     }
 }
 
@@ -878,6 +901,47 @@ struct ScorecarTotalsView: View {
     }
 }
 
+struct KeyboardToolbarModifier: ViewModifier {
+    @Binding var scoreText: String
+    @FocusState.Binding var isFocused: Bool
+    
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    if isFocused {
+                        HStack {
+                            Button("❌") {
+                                withAnimation {
+                                    scoreText = "❌"
+                                }
+                                isFocused = false
+                            }
+                            .foregroundColor(.red)
+                            Spacer()
+                            Button("Clear") {
+                                withAnimation {
+                                    scoreText = ""
+                                }
+                            }
+                            .foregroundColor(.red)
+                            Button("Done") {
+                                isFocused = false
+                            }
+                            .foregroundColor(.primaryGreen)
+                        }
+                    }
+                }
+            }
+    }
+}
+
+extension View {
+    func keyboardToolbar(scoreText: Binding<String>, isFocused: FocusState<Bool>.Binding) -> some View {
+        modifier(KeyboardToolbarModifier(scoreText: scoreText, isFocused: isFocused))
+    }
+}
+
 struct ScoreDisplayView: View {
     let score: String
     let par: Int
@@ -886,118 +950,55 @@ struct ScoreDisplayView: View {
     @FocusState private var isFocused: Bool
     
     private var scoreInt: Int? {
-        score == "❌" ? nil : Int(score)
+        if scoreText == "❌" { return nil }
+        return Int(scoreText)
     }
     
     private func colorForScore(_ score: Int) -> Color {
-        if score == 1 || score < par - 1 { return .secondaryGold }
-        if score == par - 1 { return .red }
-        if score == par { return .primaryGreen }
-        return .blue
+        if score == 1 || score < par - 1 { return .secondaryGold }  // Eagle or better
+        if score == par - 1 { return .red }         // Birdie
+        if score == par { return .primaryGreen }    // Par
+        if score == par + 1 { return .blue }        // Bogey
+        return .purple                              // Double bogey or worse
+    }
+    
+    @ViewBuilder
+    private func scoreTextField() -> some View {
+        TextField("", text: $scoreText)
+            .keyboardType(.numberPad)
+            .multilineTextAlignment(.center)
+            .frame(width: 80)
+            .font(.system(size: 20, weight: .bold))
+            .foregroundColor(scoreText == "❌" ? .red : (scoreInt.map(colorForScore) ?? .primary))
+            .frame(width: 80, height: 50)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isFocused ? Color.primaryGreen : Color.gray.opacity(0.3), lineWidth: isFocused ? 2 : 1)
+            )
+            .focused($isFocused)
     }
     
     var body: some View {
         ZStack {
-            // Score input field
-            TextField("", text: $scoreText)
-                .keyboardType(.numberPad)
-                .multilineTextAlignment(.center)
-                .frame(width: 80, height: 50)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(scoreText == "❌" ? .red : (Int(scoreText).map(colorForScore) ?? .primary))
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(isFocused ? Color.primaryGreen : Color.gray.opacity(0.3), lineWidth: isFocused ? 2 : 1)
-                )
-                .focused($isFocused)
-                .toolbar {
-                    if isFocused {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            HStack {
-                                Button("❌") {
-                                    scoreText = "❌"
-                                    isFocused = false
-                                }
-                                .foregroundColor(.red)
-                                Spacer()
-                                Button("Clear") {
-                                    scoreText = ""
-                                }
-                                .foregroundColor(.red)
-                                Button("Done") {
-                                    isFocused = false
-                                }
-                                .foregroundColor(.primaryGreen)
-                            }
-                        }
-                    }
-                }
+            scoreTextField()
             
-            // Score decorations
-            if let currentScore = Int(scoreText), scoreText != "❌" {
-                if currentScore < par - 1 {
-                    // Double circle for eagle or better
-                    ZStack {
-                        Circle()
-                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                            .frame(width: 36, height: 36)
-                        Circle()
-                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                            .frame(width: 42, height: 42)
-                    }
-                } else if currentScore == par - 1 {
-                    // Single circle for birdie
-                    Circle()
-                        .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                        .frame(width: 36, height: 36)
-                } else if currentScore == par + 1 {
-                    // Single square for bogey
-                    Rectangle()
-                        .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                        .frame(width: 36, height: 36)
-                } else if currentScore == par + 2 {
-                    // Double square for double bogey
-                    ZStack {
-                        Rectangle()
-                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                            .frame(width: 36, height: 36)
-                        Rectangle()
-                            .stroke(colorForScore(currentScore), lineWidth: 1.5)
-                            .frame(width: 42, height: 42)
-                    }
+            if !scoreText.isEmpty {
+                if let currentScore = scoreInt {
+                    scoreTextField().modifier(ScoreDecorationModifier(score: currentScore, par: par))
                 }
-            }
-            
-            // Emoji indicators
-            if let currentScore = Int(scoreText), scoreText != "❌" {
-                VStack {
-                    Spacer()
-                    if currentScore == 1 {
-                        Text("⭐️")
-                            .font(.caption)
-                    } else if currentScore == 2 {
-                        Text("✌️")
-                            .font(.caption)
-                    } else if currentScore > par + 2 {
-                        Text("💩")
-                            .font(.caption)
-                    }
-                }
-                .padding(.bottom, 4)
-            } else if scoreText == "❌" {
-                Text("❌")
-                    .font(.system(size: 24))
-                    .foregroundColor(.red)
             }
         }
+        .keyboardToolbar(scoreText: $scoreText, isFocused: $isFocused)
     }
 }
 
 struct PlayerSelectionView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var playerManager: PlayerManager
+    @EnvironmentObject private var betManager: BetManager
+    @EnvironmentObject private var userProfile: UserProfile
     @Binding var selectedPlayers: [BetComponents.Player]
     @State private var tempSelectedPlayers: Set<UUID> = []
     @State private var showAddPlayer = false
@@ -1006,9 +1007,18 @@ struct PlayerSelectionView: View {
     @State private var newPlayerEmail = ""
     
     var availablePlayers: [BetComponents.Player] {
-        playerManager.allPlayers.filter { player in
-            !selectedPlayers.contains { $0.id == player.id }
+        // Get all players from playerManager
+        var allPlayers = Set(playerManager.allPlayers)
+        
+        // Add current user if available
+        if let currentUser = userProfile.currentUser {
+            allPlayers.insert(currentUser)
         }
+        
+        // Filter out players that are already selected
+        return Array(allPlayers).filter { player in
+            !selectedPlayers.contains { $0.id == player.id }
+        }.sorted { $0.firstName < $1.firstName }
     }
     
     var body: some View {
@@ -1788,10 +1798,11 @@ struct ScoreDecorationModifier: ViewModifier {
     let par: Int
     
     private func colorForScore(_ score: Int) -> Color {
-        if score == 1 || score < par - 1 { return .secondaryGold }
-        if score == par - 1 { return .red }
-        if score == par { return .primaryGreen }
-        return .blue
+        if score == 1 || score < par - 1 { return .secondaryGold }  // Eagle or better
+        if score == par - 1 { return .red }         // Birdie
+        if score == par { return .primaryGreen }    // Par
+        if score == par + 1 { return .blue }        // Bogey
+        return .purple                              // Double bogey or worse
     }
     
     func body(content: Content) -> some View {
@@ -1816,7 +1827,7 @@ struct ScoreDecorationModifier: ViewModifier {
                     // Single square for bogey
                     Rectangle()
                         .stroke(colorForScore(score), lineWidth: 1.5)
-                        .frame(width: 36, height: 36)
+                            .frame(width: 36, height: 36)
                 } else if score == par + 2 {
                     // Double square for double bogey
                     ZStack {
