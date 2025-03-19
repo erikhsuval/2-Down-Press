@@ -530,28 +530,73 @@ public struct AlabamaBet: Identifiable, Codable {
     
     private func calculateLowBallTotal(
         team: [Player],
+        otherTeam: [Player],
         holes: Range<Int>,
         scores: [UUID: [String]],
-        swingMan: Player?
+        swingMan: Player?,
+        swingManTeamIndex: Int?,
+        teamIndex: Int,
+        teeBox: TeeBox
     ) -> Int {
         var lowBallWins = 0
         for hole in holes {
-            var lowestScore = Int.max
-            // Count team members' scores
+            let par = teeBox.holes[hole].par
+            
+            // Calculate lowest score for team
+            var teamLowestScore = Int.max
             for player in team {
-                if let scoreStr = scores[player.id]?[hole],
-                   let score = Int(scoreStr) {
-                    lowestScore = min(lowestScore, score)
+                if let scoreStr = scores[player.id]?[hole] {
+                    if scoreStr == "X" {
+                        teamLowestScore = min(teamLowestScore, par * 2)
+                    } else if let score = Int(scoreStr) {
+                        teamLowestScore = min(teamLowestScore, score)
+                    }
                 }
             }
-            // Always count swing man's score if present
+            // Include swing man's score if they're on this team
             if let swingMan = swingMan,
-               let scoreStr = scores[swingMan.id]?[hole],
-               let score = Int(scoreStr) {
-                lowestScore = min(lowestScore, score)
+               swingManTeamIndex == teamIndex,
+               let scoreStr = scores[swingMan.id]?[hole] {
+                if scoreStr == "X" {
+                    teamLowestScore = min(teamLowestScore, par * 2)
+                } else if let score = Int(scoreStr) {
+                    teamLowestScore = min(teamLowestScore, score)
+                }
             }
-            if lowestScore != Int.max {
-                lowBallWins += 1
+            
+            // Calculate lowest score for other team
+            var otherTeamLowestScore = Int.max
+            for player in otherTeam {
+                if let scoreStr = scores[player.id]?[hole] {
+                    if scoreStr == "X" {
+                        otherTeamLowestScore = min(otherTeamLowestScore, par * 2)
+                    } else if let score = Int(scoreStr) {
+                        otherTeamLowestScore = min(otherTeamLowestScore, score)
+                    }
+                }
+            }
+            // Include swing man's score if they're on the other team
+            if let swingMan = swingMan,
+               swingManTeamIndex != teamIndex,
+               let scoreStr = scores[swingMan.id]?[hole] {
+                if scoreStr == "X" {
+                    otherTeamLowestScore = min(otherTeamLowestScore, par * 2)
+                } else if let score = Int(scoreStr) {
+                    otherTeamLowestScore = min(otherTeamLowestScore, score)
+                }
+            }
+            
+            // Only count if both teams have valid scores
+            if teamLowestScore != Int.max && otherTeamLowestScore != Int.max {
+                // Team wins if they have the lower score
+                if teamLowestScore < otherTeamLowestScore {
+                    lowBallWins += 1
+                }
+                // Other team wins if they have the lower score
+                else if otherTeamLowestScore < teamLowestScore {
+                    lowBallWins -= 1
+                }
+                // Tie results in no change
             }
         }
         return lowBallWins
@@ -687,29 +732,27 @@ public struct AlabamaBet: Identifiable, Codable {
             0
         }
         
-        // Calculate Low Ball totals
-        let playerTeamLowBallFront9 = calculateLowBallTotal(
+        // Calculate Low Ball totals with updated function
+        let lowBallFront9Score = calculateLowBallTotal(
             team: teams[playerTeamIndex],
+            otherTeam: teams[otherTeamIndex],
             holes: 0..<9,
             scores: scores,
-            swingMan: swingMan
-        )
-        let otherTeamLowBallFront9 = calculateLowBallTotal(
-            team: teams[otherTeamIndex],
-            holes: 0..<9,
-            scores: scores,
-            swingMan: swingMan
+            swingMan: swingMan,
+            swingManTeamIndex: swingManTeamIndex,
+            teamIndex: playerTeamIndex,
+            teeBox: teeBox
         )
         
         // Calculate front 9 low ball
-        let lowBallFront9: Double = if playerTeamLowBallFront9 < otherTeamLowBallFront9 {
+        let lowBallFront9: Double = if lowBallFront9Score > 0 {
             // Win - if winning team is smaller, they get more per player
             if playerTeamSize < otherTeamSize {
                 (lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
             } else {
                 lowBallAmount
             }
-        } else if playerTeamLowBallFront9 > otherTeamLowBallFront9 {
+        } else if lowBallFront9Score < 0 {
             // Loss - if losing team is smaller, they pay more per player
             if playerTeamSize < otherTeamSize {
                 -(lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
@@ -720,28 +763,26 @@ public struct AlabamaBet: Identifiable, Codable {
             0
         }
         
-        let playerTeamLowBallBack9 = calculateLowBallTotal(
+        let lowBallBack9Score = calculateLowBallTotal(
             team: teams[playerTeamIndex],
+            otherTeam: teams[otherTeamIndex],
             holes: 9..<18,
             scores: scores,
-            swingMan: swingMan
-        )
-        let otherTeamLowBallBack9 = calculateLowBallTotal(
-            team: teams[otherTeamIndex],
-            holes: 9..<18,
-            scores: scores,
-            swingMan: swingMan
+            swingMan: swingMan,
+            swingManTeamIndex: swingManTeamIndex,
+            teamIndex: playerTeamIndex,
+            teeBox: teeBox
         )
         
         // Calculate back 9 low ball
-        let lowBallBack9: Double = if playerTeamLowBallBack9 < otherTeamLowBallBack9 {
+        let lowBallBack9: Double = if lowBallBack9Score > 0 {
             // Win - if winning team is smaller, they get more per player
             if playerTeamSize < otherTeamSize {
                 (lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
             } else {
                 lowBallAmount
             }
-        } else if playerTeamLowBallBack9 > otherTeamLowBallBack9 {
+        } else if lowBallBack9Score < 0 {
             // Loss - if losing team is smaller, they pay more per player
             if playerTeamSize < otherTeamSize {
                 -(lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
