@@ -73,7 +73,7 @@ struct TeeBoxSelectionView: View {
             }
             .navigationDestination(isPresented: $navigateToScorecard) {
                 if let selected = selectedLocalTeeBox {
-                    ScorecardView(course: course, teeBox: selected)
+                    ScorecardView(course: course, teeBox: selected, isNewRound: true)
                 }
             }
         }

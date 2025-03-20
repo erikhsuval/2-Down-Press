@@ -287,18 +287,27 @@ class BetManager: ObservableObject {
         return totalSideBetWinnings
     }
     
+    func clearAllBets() {
+        betComponentsManager.individualBets.removeAll()
+        betComponentsManager.fourBallBets.removeAll()
+        betComponentsManager.alabamaBets.removeAll()
+        betComponentsManager.doDaBets.removeAll()
+        betComponentsManager.skinsBets.removeAll()
+        betComponentsManager.playerScores.removeAll()
+        teeBox = nil
+        objectWillChange.send()
+    }
+    
     func restoreGameState(from gameState: GameState) {
         // Restore all bets
-        individualBets = gameState.bets.individualBets
-        fourBallBets = gameState.bets.fourBallBets
-        alabamaBets = gameState.bets.alabamaBets
-        doDaBets = gameState.bets.doDaBets
-        skinsBets = gameState.bets.skinsBets
+        betComponentsManager.individualBets = gameState.bets.individualBets
+        betComponentsManager.fourBallBets = gameState.bets.fourBallBets
+        betComponentsManager.alabamaBets = gameState.bets.alabamaBets
+        betComponentsManager.doDaBets = gameState.bets.doDaBets
+        betComponentsManager.skinsBets = gameState.bets.skinsBets
         
-        // Restore scores
-        playerScores = gameState.scores
-        
-        // Restore selected players
+        // Restore scores and players
+        betComponentsManager.playerScores = gameState.scores
         selectedPlayers = gameState.players
         
         objectWillChange.send()

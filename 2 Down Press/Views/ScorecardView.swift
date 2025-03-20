@@ -12,6 +12,7 @@ private extension View {
 struct ScorecardView: View {
     let course: GolfCourse
     let teeBox: BetComponents.TeeBox
+    let isNewRound: Bool
     @State private var showMenu = false
     @State private var showBetCreation = false
     @State private var showPlayerSelection = false
@@ -33,6 +34,7 @@ struct ScorecardView: View {
     @State private var showUnpostConfirmation = false
     @State private var showPostAnimation = false
     @State private var isPosted = false
+    @FocusState private var isScoreFieldFocused: Bool
     
     private let maxTimerDuration: TimeInterval = 6 * 60 * 60 // 6 hours in seconds
     
@@ -78,6 +80,74 @@ struct ScorecardView: View {
         return Array(allPlayers)
     }
     
+    private var currentPlayer: BetComponents.Player {
+        guard let playerId = selectedPlayerId,
+              let player = players.first(where: { $0.id == playerId }) else { return players[0] }
+        return player
+    }
+    
+    private var currentPlayerScores: [String] {
+        guard let playerId = selectedPlayerId,
+              let scores = scores[playerId] else {
+            return Array(repeating: "", count: 18)
+        }
+        return scores
+    }
+    
+    private var sortedPlayers: [BetComponents.Player] {
+        // Get all groups
+        let allGroups = groupManager.groups
+        
+        // Create a dictionary to store player indices for stable sorting
+        var playerIndices: [UUID: Int] = [:]
+        
+        // First, add all players from groups in order
+        var sorted: [BetComponents.Player] = []
+        for (groupIndex, group) in allGroups.enumerated() {
+            for (playerIndex, player) in group.enumerated() {
+                sorted.append(player)
+                playerIndices[player.id] = groupIndex * 100 + playerIndex // Use group index as major sort key
+            }
+        }
+        
+        // Then add any remaining players that aren't in any group
+        let remainingPlayers = players.filter { player in
+            !sorted.contains { $0.id == player.id }
+        }
+        for (index, player) in remainingPlayers.enumerated() {
+            sorted.append(player)
+            playerIndices[player.id] = allGroups.count * 100 + index
+        }
+        
+        // Sort by the stable indices we created
+        return sorted.sorted { player1, player2 in
+            playerIndices[player1.id, default: Int.max] < playerIndices[player2.id, default: Int.max]
+        }
+    }
+    
+    private func getTeamColor(for player: BetComponents.Player, groupManager: GroupManager) -> Color? {
+        // First check Alabama teams
+        if let alabamaBet = betManager.alabamaBets.first(where: { bet in
+            bet.teams.contains(where: { team in
+                team.contains(where: { $0.id == player.id })
+            })
+        }) {
+            for (index, team) in alabamaBet.teams.enumerated() {
+                if team.contains(where: { $0.id == player.id }) {
+                    return teamColors[index]
+                }
+            }
+        }
+        
+        // If no Alabama color, check if player is in current group
+        if let currentGroup = groupManager.currentGroup,
+           currentGroup.contains(where: { $0.id == player.id }) {
+            return .primaryGreen
+        }
+        
+        return nil
+    }
+    
     var formattedTime: String {
         let hours = Int(elapsedTime) / 3600
         let minutes = Int(elapsedTime) / 60 % 60
@@ -87,8 +157,9 @@ struct ScorecardView: View {
     
     public var body: some View {
         NavigationStack {
-            ZStack {
+            GeometryReader { geometry in
                 VStack(spacing: 0) {
+                    // Header
                     ScorecardHeaderView(
                         course: course,
                         showMenu: $showMenu,
@@ -96,15 +167,27 @@ struct ScorecardView: View {
                         showBetCreation: $showBetCreation,
                         showLeaderboard: $showLeaderboard
                     )
-                    ScorecardContentView(
-                        players: players,
-                        expandedPlayers: $expandedPlayers,
-                        playerScores: scores,
-                        teeBox: teeBox,
-                        betManager: betManager,
+                    .frame(maxHeight: geometry.size.height * 0.15)
+                    
+                    // Player carousel
+                    PlayerCarouselView(
+                        players: sortedPlayers,
                         selectedPlayerId: $selectedPlayerId,
-                        updateScore: updateScore
+                        isScoreFieldFocused: isScoreFieldFocused,
+                        getTeamColor: getTeamColor,
+                        geometry: geometry
                     )
+                    
+                    // Main content
+                    ScorecardMainContentView(
+                        teeBox: teeBox,
+                        currentPlayer: currentPlayer,
+                        currentPlayerScores: currentPlayerScores,
+                        updateScore: updateScore,
+                        geometry: geometry
+                    )
+                    
+                    // Footer
                     ScorecardFooterView(
                         players: players,
                         playerScores: scores,
@@ -114,28 +197,24 @@ struct ScorecardView: View {
                         showPostConfirmation: $showPostConfirmation,
                         showUnpostConfirmation: $showUnpostConfirmation
                     )
+                    .frame(maxHeight: geometry.size.height * 0.1)
                 }
             }
-            .edgesIgnoringSafeArea(.bottom)
-            .overlay(PostAnimationOverlay(showPostAnimation: $showPostAnimation))
+            .overlay(
+                PostAnimationOverlay(showPostAnimation: $showPostAnimation)
+            )
             .alert("Post Round", isPresented: $showPostConfirmation) {
                 Button("Cancel", role: .cancel) { }
                 Button("Post") {
-                    // Merge all group scores before posting
                     betManager.mergeGroupScores()
-                    
-                    // Update scores and teeBox in BetManager
                     betManager.updateScoresAndTeeBox(scores, teeBox)
-                    
                     withAnimation {
                         showPostAnimation = true
-                        showPostConfirmation = false
+                        isPosted = true
                     }
-                    // Dismiss the animation after 1.5 seconds and return to scorecard
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         withAnimation {
                             showPostAnimation = false
-                            showPostConfirmation = false
                         }
                     }
                 }
@@ -147,7 +226,6 @@ struct ScorecardView: View {
             .sheet(isPresented: $showPlayerSelection) {
                 PlayerSelectionView(selectedPlayers: $selectedPlayers)
                     .onDisappear {
-                        // Initialize scores for newly added players
                         for player in selectedPlayers {
                             initializeScores(for: player.id)
                         }
@@ -168,12 +246,9 @@ struct ScorecardView: View {
                     playerScores: scores,
                     currentPlayerId: $selectedPlayerId,
                     onScoresImported: { importedScores, importedPlayers in
-                        // Update local scores with imported scores
                         for (playerId, playerScores) in importedScores {
                             scores[playerId] = playerScores
                         }
-                        
-                        // Add any new players
                         for player in importedPlayers {
                             if !selectedPlayers.contains(where: { $0.id == player.id }) {
                                 selectedPlayers.append(player)
@@ -186,21 +261,24 @@ struct ScorecardView: View {
                 BetCreationView()
             }
             .onAppear {
-                // If there's a saved game, restore it
-                if let savedGame = gameStateManager.currentGame,
-                   savedGame.courseId == course.id,
-                   savedGame.teeBoxName == teeBox.name {
-                    // Initialize local state
+                if isNewRound {
+                    betManager.clearAllBets()
+                    scores.removeAll()
+                    selectedPlayers.removeAll()
+                    isPosted = false
+                    selectedPlayerId = nil
+                    hasStartedRound = false
+                    elapsedTime = 0
+                    isTimerRunning = false
+                } else if let savedGame = gameStateManager.currentGame,
+                         savedGame.courseId == course.id,
+                         savedGame.teeBoxName == teeBox.name {
                     scores = savedGame.scores
                     selectedPlayers = savedGame.players
                     isPosted = savedGame.isCompleted
                     selectedPlayerId = savedGame.selectedPlayerId
-                    
-                    // Update BetManager state
                     gameStateManager.restoreGame(to: betManager)
                     betManager.teeBox = teeBox
-                    
-                    // If there are scores, the round has started
                     if !savedGame.scores.isEmpty {
                         hasStartedRound = true
                         isTimerRunning = true
@@ -208,12 +286,8 @@ struct ScorecardView: View {
                     }
                 }
             }
-            .onChange(of: scores) { oldValue, newValue in
-                // Save game state whenever scores change
-                saveGameState()
-            }
+            .onChange(of: scores) { _, _ in saveGameState() }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
-                // Save game state when app goes to background
                 saveGameState()
             }
         }
@@ -290,6 +364,99 @@ struct ScorecardView: View {
     ]
 }
 
+// MARK: - Subviews
+private struct PlayerCarouselView: View {
+    let players: [BetComponents.Player]
+    @Binding var selectedPlayerId: UUID?
+    let isScoreFieldFocused: Bool
+    let getTeamColor: (BetComponents.Player, GroupManager) -> Color?
+    let geometry: GeometryProxy
+    @EnvironmentObject private var groupManager: GroupManager
+    
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            ScrollViewReader { scrollView in
+                HStack(spacing: 12) {
+                    ForEach(players, id: \.id) { player in
+                        PlayerButton(
+                            player: player,
+                            isSelected: selectedPlayerId == player.id,
+                            teamColor: getTeamColor(player, groupManager)
+                        )
+                        .id(player.id)
+                        .onTapGesture {
+                            if !isScoreFieldFocused {
+                                withAnimation {
+                                    selectedPlayerId = player.id
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .onChange(of: selectedPlayerId) { _, newValue in
+                    if let id = newValue {
+                        withAnimation {
+                            scrollView.scrollTo(id, anchor: .center)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxHeight: geometry.size.height * 0.12)
+        .background(Color.primaryGreen.opacity(0.2))
+    }
+}
+
+private struct ScorecardMainContentView: View {
+    let teeBox: BetComponents.TeeBox
+    let currentPlayer: BetComponents.Player
+    let currentPlayerScores: [String]
+    let updateScore: (BetComponents.Player, Int, String) -> Void
+    let geometry: GeometryProxy
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                HStack {
+                    Text("Playing from:")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                    Text(teeBox.name)
+                        .font(.headline)
+                        .foregroundColor(.primaryGreen)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                
+                ScorecardGridView(
+                    holes: Array(teeBox.holes.prefix(9)),
+                    scores: Array(currentPlayerScores.prefix(9)),
+                    onScoreUpdate: { index, score in
+                        updateScore(currentPlayer, index, score)
+                    }
+                )
+                
+                ScorecardGridView(
+                    holes: Array(teeBox.holes.suffix(9)),
+                    scores: Array(currentPlayerScores.suffix(9)),
+                    onScoreUpdate: { index, score in
+                        updateScore(currentPlayer, index + 9, score)
+                    }
+                )
+                
+                ScorecarTotalsView(
+                    holes: teeBox.holes,
+                    scores: currentPlayerScores
+                )
+            }
+            .padding(.bottom)
+        }
+        .frame(maxHeight: geometry.size.height * 0.63)
+    }
+}
+
 private struct ScorecardHeaderView: View {
     let course: GolfCourse
     @Binding var showMenu: Bool
@@ -354,7 +521,9 @@ private struct ScorecardHeaderView: View {
                         .clipShape(Circle())
                 }
             }
-            .padding()
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
             .background(
                 LinearGradient(
                     gradient: Gradient(colors: [Color.primaryGreen, Color.primaryGreen.opacity(0.9)]),
@@ -379,170 +548,6 @@ private struct ScorecardHeaderView: View {
             }
         }
     }
-}
-
-private struct ScorecardContentView: View {
-    let players: [BetComponents.Player]
-    @Binding var expandedPlayers: Set<UUID>
-    let playerScores: [UUID: [String]]
-    let teeBox: BetComponents.TeeBox
-    let betManager: BetManager
-    @Binding var selectedPlayerId: UUID?
-    let updateScore: (BetComponents.Player, Int, String) -> Void
-    @EnvironmentObject private var groupManager: GroupManager
-    @FocusState private var isScoreFieldFocused: Bool
-    
-    private var currentPlayer: BetComponents.Player {
-        guard let playerId = selectedPlayerId,
-              let player = players.first(where: { $0.id == playerId }) else { return players[0] }
-        return player
-    }
-    
-    private var currentPlayerScores: [String] {
-        guard let playerId = selectedPlayerId,
-              let scores = playerScores[playerId] else {
-            return Array(repeating: "", count: 18)
-        }
-        return scores
-    }
-    
-    private var sortedPlayers: [BetComponents.Player] {
-        // Get all groups
-        let allGroups = groupManager.groups
-        
-        // Create a dictionary to store player indices for stable sorting
-        var playerIndices: [UUID: Int] = [:]
-        
-        // First, add all players from groups in order
-        var sorted: [BetComponents.Player] = []
-        for (groupIndex, group) in allGroups.enumerated() {
-            for (playerIndex, player) in group.enumerated() {
-                sorted.append(player)
-                playerIndices[player.id] = groupIndex * 100 + playerIndex // Use group index as major sort key
-            }
-        }
-        
-        // Then add any remaining players that aren't in any group
-        let remainingPlayers = players.filter { player in
-            !sorted.contains { $0.id == player.id }
-        }
-        for (index, player) in remainingPlayers.enumerated() {
-            sorted.append(player)
-            playerIndices[player.id] = allGroups.count * 100 + index
-        }
-        
-        // Sort by the stable indices we created
-        return sorted.sorted { player1, player2 in
-            playerIndices[player1.id, default: Int.max] < playerIndices[player2.id, default: Int.max]
-        }
-    }
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Player carousel
-            ScrollViewReader { scrollView in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(sortedPlayers, id: \.id) { player in
-                            PlayerButton(
-                                player: player,
-                                isSelected: selectedPlayerId == player.id,
-                                teamColor: getTeamColor(for: player, groupManager: groupManager)
-                            )
-                            .id(player.id)
-                            .onTapGesture {
-                                if !isScoreFieldFocused {
-                                    withAnimation {
-                                        selectedPlayerId = player.id
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                }
-                .onChange(of: selectedPlayerId) { oldValue, newValue in
-                    if let id = newValue {
-                        withAnimation {
-                            scrollView.scrollTo(id, anchor: .center)
-                        }
-                    }
-                }
-            }
-            .background(Color.primaryGreen.opacity(0.2))
-            
-            // Tee box info
-            HStack {
-                Text("Playing from:")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                Text(teeBox.name)
-                    .font(.headline)
-                    .foregroundColor(.primaryGreen)
-                Spacer()
-            }
-            .padding(.horizontal)
-            
-            // Scorecard content
-            VStack(spacing: 16) {
-                // Front 9
-                ScorecardGridView(
-                    holes: Array(teeBox.holes.prefix(9)),
-                    scores: Array(currentPlayerScores.prefix(9)),
-                    onScoreUpdate: { index, score in
-                        updateScore(currentPlayer, index, score)
-                    }
-                )
-                
-                // Back 9
-                ScorecardGridView(
-                    holes: Array(teeBox.holes.suffix(9)),
-                    scores: Array(currentPlayerScores.suffix(9)),
-                    onScoreUpdate: { index, score in
-                        updateScore(currentPlayer, index + 9, score)
-                    }
-                )
-                
-                // Totals
-                ScorecarTotalsView(
-                    holes: teeBox.holes,
-                    scores: currentPlayerScores
-                )
-            }
-            .padding(.bottom)
-        }
-    }
-    
-    private func getTeamColor(for player: BetComponents.Player, groupManager: GroupManager) -> Color? {
-        // First check Alabama teams
-        if let alabamaBet = betManager.alabamaBets.first(where: { bet in
-            bet.teams.contains(where: { team in
-                team.contains(where: { $0.id == player.id })
-            })
-        }) {
-            for (index, team) in alabamaBet.teams.enumerated() {
-                if team.contains(where: { $0.id == player.id }) {
-                    return teamColors[index]
-                }
-            }
-        }
-        
-        // If no Alabama color, check if player is in current group
-        if let currentGroup = groupManager.currentGroup,
-           currentGroup.contains(where: { $0.id == player.id }) {
-            return .primaryGreen
-        }
-        
-        return nil
-    }
-    
-    private let teamColors: [Color] = [
-        Color(red: 0.91, green: 0.3, blue: 0.24),   // Vibrant Red
-        Color(red: 0.0, green: 0.48, blue: 0.8),    // Ocean Blue
-        Color.teamGold,                              // Team Gold
-        Color(red: 0.6, green: 0.2, blue: 0.8)      // Royal Purple
-    ]
 }
 
 private struct ScorecardFooterView: View {
@@ -1005,6 +1010,8 @@ struct PlayerSelectionView: View {
     @State private var newPlayerFirstName = ""
     @State private var newPlayerLastName = ""
     @State private var newPlayerEmail = ""
+    @State private var showDeleteAlert = false
+    @State private var playerToDelete: BetComponents.Player?
     
     var availablePlayers: [BetComponents.Player] {
         // Get all players from playerManager
@@ -1052,23 +1059,30 @@ struct PlayerSelectionView: View {
                 }
                 .frame(maxHeight: .infinity)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(availablePlayers) { player in
-                            PlayerSelectionRow(
-                                player: player,
-                                isSelected: tempSelectedPlayers.contains(player.id)
-                            )
-                            .onTapGesture {
-                                if tempSelectedPlayers.contains(player.id) {
-                                    tempSelectedPlayers.remove(player.id)
-                                } else {
-                                    tempSelectedPlayers.insert(player.id)
+                List {
+                    ForEach(availablePlayers) { player in
+                        PlayerSelectionRow(
+                            player: player,
+                            isSelected: tempSelectedPlayers.contains(player.id)
+                        )
+                        .onTapGesture {
+                            if tempSelectedPlayers.contains(player.id) {
+                                tempSelectedPlayers.remove(player.id)
+                            } else {
+                                tempSelectedPlayers.insert(player.id)
+                            }
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            if player.id != userProfile.currentUser?.id {
+                                Button(role: .destructive) {
+                                    playerToDelete = player
+                                    showDeleteAlert = true
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
                                 }
                             }
                         }
                     }
-                    .padding(.vertical)
                 }
             }
             
@@ -1139,6 +1153,21 @@ struct PlayerSelectionView: View {
                     }
                     .disabled(newPlayerFirstName.isEmpty || newPlayerLastName.isEmpty)
                 )
+            }
+        }
+        .alert("Delete Player", isPresented: $showDeleteAlert) {
+            Button("Cancel", role: .cancel) {
+                playerToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let player = playerToDelete {
+                    playerManager.removePlayer(player)
+                }
+                playerToDelete = nil
+            }
+        } message: {
+            if let player = playerToDelete {
+                Text("Are you sure you want to delete \(player.firstName) \(player.lastName)?")
             }
         }
     }
@@ -1223,6 +1252,14 @@ struct LeaderboardView: View {
             
             if showPostAnimation {
                 PostAnimationOverlay(showPostAnimation: $showPostAnimation)
+            }
+            
+            if showMenu {
+                SideMenuView(
+                    isShowing: $showMenu,
+                    showPlayerList: .constant(false),
+                    showFourBallMatchSetup: .constant(false)
+                )
             }
         }
         .alert("Post Round", isPresented: $showPostConfirmation) {
@@ -1827,7 +1864,7 @@ struct ScoreDecorationModifier: ViewModifier {
                     // Single square for bogey
                     Rectangle()
                         .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 36, height: 36)
+                        .frame(width: 36, height: 36)
                 } else if score == par + 2 {
                     // Double square for double bogey
                     ZStack {

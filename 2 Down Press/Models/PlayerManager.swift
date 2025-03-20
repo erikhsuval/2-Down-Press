@@ -1,10 +1,12 @@
 import Foundation
 import BetComponents
+import os
 
 class PlayerManager: ObservableObject {
     @Published private(set) var allPlayers: [BetComponents.Player] = []
     private let userDefaults = UserDefaults.standard
     private let currentRoundPlayersKey = "currentRoundPlayers"
+    private let logger = Logger(subsystem: "com.2downpress", category: "PlayerManager")
     
     init() {
         loadCurrentRoundPlayers()
@@ -26,11 +28,13 @@ class PlayerManager: ObservableObject {
         )
         allPlayers.append(player)
         saveCurrentRoundPlayers()
+        logger.debug("Added player: \(player.firstName) \(player.lastName)")
     }
     
     func removePlayer(_ player: BetComponents.Player) {
         allPlayers.removeAll { $0.id == player.id }
         saveCurrentRoundPlayers()
+        logger.debug("Removed player: \(player.firstName) \(player.lastName)")
     }
     
     func clearAllPlayers() {

@@ -723,65 +723,8 @@ private struct AlabamaTeamResultsView: View {
     }
 }
 
-private struct AlabamaTeamHeader: View {
-    @EnvironmentObject private var betManager: BetManager
-    let bet: AlabamaBet
-    let playerTeamIndex: Int
-    let player: BetComponents.Player
-    let teeBox: BetComponents.TeeBox
-    let matchupResults: [AlabamaBet.TeamResults]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Alabama")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                Spacer()
-                let netTotal = matchupResults.reduce(0.0) { $0 + $1.total }
-                Text(String(format: "$%.2f", netTotal))
-                    .font(.headline)
-                    .foregroundColor(netTotal >= 0 ? .primaryGreen : .red)
-            }
-            
-            // Show team info
-            HStack {
-                Text(player.id == bet.swingMan?.id ? 
-                    "Swing Man - Team \(playerTeamIndex + 1)" : 
-                    "Team \(playerTeamIndex + 1)")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                Spacer()
-                let teamBirdies = bet.countTeamBirdies(
-                    team: bet.teams[playerTeamIndex],
-                    scores: betManager.playerScores,
-                    teeBox: teeBox,
-                    swingMan: bet.swingMan  // Always include swing man
-                )
-                Text("Total Birdies: \(teamBirdies)")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-            }
-        }
-    }
-}
-
-private struct AlabamaMatchupView: View {
-    let bet: AlabamaBet
-    let playerTeamIndex: Int
-    let otherTeamIndex: Int
-    let teamResults: AlabamaResults
-    
-    var body: some View {
-        AlabamaTeamResultsView(
-            bet: bet,
-            playerTeamIndex: playerTeamIndex,
-            otherTeamIndex: otherTeamIndex,
-            teamResults: teamResults
-        )
-    }
-}
-
+// START OF ORIGINAL VERSION - DO NOT DELETE
+/*
 private struct AlabamaBreakdown: View {
     @EnvironmentObject private var betManager: BetManager
     let player: BetComponents.Player
@@ -854,6 +797,184 @@ private struct AlabamaBreakdown: View {
                         .fill(Color.white)
                         .shadow(color: .black.opacity(0.1), radius: 4)
                 )
+            }
+        }
+    }
+}
+
+private struct AlabamaTeamHeader: View {
+    @EnvironmentObject private var betManager: BetManager
+    let bet: AlabamaBet
+    let playerTeamIndex: Int
+    let player: BetComponents.Player
+    let teeBox: BetComponents.TeeBox
+    let matchupResults: [AlabamaBet.TeamResults]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Alabama")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Spacer()
+                let netTotal = matchupResults.reduce(0.0) { $0 + $1.total }
+                Text(String(format: "$%.2f", netTotal))
+                    .font(.headline)
+                    .foregroundColor(netTotal >= 0 ? .primaryGreen : .red)
+            }
+            
+            // Show team info
+            HStack {
+                Text(player.id == bet.swingMan?.id ? 
+                    "Swing Man - Team \(playerTeamIndex + 1)" : 
+                    "Team \(playerTeamIndex + 1)")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                Spacer()
+                let teamBirdies = bet.countTeamBirdies(
+                    team: bet.teams[playerTeamIndex],
+                    scores: betManager.playerScores,
+                    teeBox: teeBox,
+                    swingMan: bet.swingMan  // Always include swing man
+                )
+                Text("Total Birdies: \(teamBirdies)")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+            }
+        }
+    }
+}
+*/
+// END OF ORIGINAL VERSION
+
+// NEW VERSION WITH MAPPING
+private struct AlabamaBreakdown: View {
+    @EnvironmentObject private var betManager: BetManager
+    let player: BetComponents.Player
+    
+    private func mapToAlabamaResults(_ betResults: AlabamaBet.TeamResults) -> AlabamaResults {
+        return AlabamaResults(
+            front9: betResults.front9,
+            back9: betResults.back9,
+            lowBallFront9: betResults.lowBallFront9,
+            lowBallBack9: betResults.lowBallBack9,
+            birdies: betResults.birdies
+        )
+    }
+    
+    var body: some View {
+        let relevantBets = betManager.alabamaBets.filter { bet in
+            bet.teams.contains { team in team.contains { $0.id == player.id } } || bet.swingMan?.id == player.id
+        }
+        
+        ForEach(relevantBets, id: \.id) { bet in
+            if let teeBox = betManager.teeBox {
+                let playerTeamIndex = bet.teams.firstIndex { team in
+                    team.contains { $0.id == player.id }
+                } ?? bet.swingManTeamIndex ?? 0
+                
+                // Calculate all matchup results first
+                let matchupResults = bet.teams.indices.compactMap { index -> AlabamaResults? in
+                    if index != playerTeamIndex {
+                        let betResults = bet.calculateTeamResults(
+                            playerTeamIndex: playerTeamIndex,
+                            otherTeamIndex: index,
+                            scores: betManager.playerScores,
+                            teeBox: teeBox
+                        )
+                        return mapToAlabamaResults(betResults)
+                    }
+                    return nil
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    // Use AlabamaTeamHeader for consistent display
+                    AlabamaTeamHeader(
+                        bet: bet,
+                        playerTeamIndex: playerTeamIndex,
+                        player: player,
+                        teeBox: teeBox,
+                        matchupResults: matchupResults
+                    )
+                    
+                    // Show matchup details
+                    ForEach(Array(bet.teams.enumerated()), id: \.offset) { index, team in
+                        if index != playerTeamIndex {
+                            let betResults = bet.calculateTeamResults(
+                                playerTeamIndex: playerTeamIndex,
+                                otherTeamIndex: index,
+                                scores: betManager.playerScores,
+                                teeBox: teeBox
+                            )
+                            let results = mapToAlabamaResults(betResults)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("vs Team \(index + 1)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    AlabamaTeamResultsRow(label: "Alabama Front 9:", amount: results.front9)
+                                    AlabamaTeamResultsRow(label: "Alabama Back 9:", amount: results.back9)
+                                    AlabamaTeamResultsRow(label: "Low Ball Front 9:", amount: results.lowBallFront9)
+                                    AlabamaTeamResultsRow(label: "Low Ball Back 9:", amount: results.lowBallBack9)
+                                    AlabamaTeamResultsRow(label: "Birdies:", amount: results.birdies)
+                                    AlabamaTeamResultsRow(label: "Total:", amount: results.total)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white)
+                        .shadow(color: .black.opacity(0.1), radius: 4)
+                )
+            }
+        }
+    }
+}
+
+private struct AlabamaTeamHeader: View {
+    @EnvironmentObject private var betManager: BetManager
+    let bet: AlabamaBet
+    let playerTeamIndex: Int
+    let player: BetComponents.Player
+    let teeBox: BetComponents.TeeBox
+    let matchupResults: [AlabamaResults]  // Updated type
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Alabama")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Spacer()
+                let netTotal = matchupResults.reduce(0.0) { $0 + $1.total }
+                Text(String(format: "$%.2f", netTotal))
+                    .font(.headline)
+                    .foregroundColor(netTotal >= 0 ? .primaryGreen : .red)
+            }
+            
+            // Show team info
+            HStack {
+                Text(player.id == bet.swingMan?.id ? 
+                    "Swing Man - Team \(playerTeamIndex + 1)" : 
+                    "Team \(playerTeamIndex + 1)")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                Spacer()
+                let teamBirdies = bet.countTeamBirdies(
+                    team: bet.teams[playerTeamIndex],
+                    scores: betManager.playerScores,
+                    teeBox: teeBox,
+                    swingMan: bet.swingMan
+                )
+                Text("Total Birdies: \(teamBirdies)")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
             }
         }
     }
