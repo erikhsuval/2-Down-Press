@@ -143,7 +143,7 @@ struct GroupSetupView: View {
                     onComplete: { players in
                         viewModel.updateGroups(at: currentGroupIndex, with: players)
                     },
-                    allPlayers: playerManager.allPlayers,
+                    allPlayers: playerManager.currentRoundPlayers,
                     excludedPlayers: excludedPlayers,
                     teamName: "Group \(currentGroupIndex + 1)",
                     teamColor: groupColors[currentGroupIndex % groupColors.count],

@@ -10,7 +10,7 @@ struct PuttingWithPuffSetupView: View {
     @State private var showPuttingSession = false
     
     private var allAvailablePlayers: [BetComponents.Player] {
-        var players = playerManager.allPlayers
+        var players = playerManager.currentRoundPlayers
         if let currentUser = userProfile.currentUser,
            !players.contains(where: { $0.id == currentUser.id }) {
             players.insert(currentUser, at: 0)

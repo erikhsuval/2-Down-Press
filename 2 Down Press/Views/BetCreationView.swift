@@ -108,7 +108,7 @@ struct BetCreationView: View {
         }
         
         // Start with all players from PlayerManager
-        var availablePlayers = playerManager.allPlayers
+        var availablePlayers = playerManager.currentRoundPlayers
         
         // Always include current user if available
         if let currentUser = userProfile.currentUser,

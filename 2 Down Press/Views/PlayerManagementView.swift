@@ -11,41 +11,43 @@ struct PlayerManagementView: View {
     @State private var alertMessage = ""
     
     var body: some View {
-        List {
-            Section {
-                ForEach(playerManager.allPlayers) { player in
+        VStack {
+            List {
+                ForEach(playerManager.currentRoundPlayers) { player in
                     PlayerRow(player: player)
-                        .swipeActions {
-                            Button(role: .destructive) {
-                                playerManager.removePlayer(player)
-                            } label: {
-                                Label("Remove", systemImage: "trash")
-                            }
-                        }
-                }
-            } header: {
-                Text("Current Round Players")
-            } footer: {
-                if playerManager.allPlayers.isEmpty {
-                    Text("Add players for this round")
-                }
-            }
-        }
-        .navigationTitle("Manage Players")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    showingAddPlayer = true
-                } label: {
-                    Image(systemName: "person.badge.plus")
                 }
             }
             
+            if playerManager.currentRoundPlayers.isEmpty {
+                Text("No players added yet")
+                    .foregroundColor(.gray)
+                    .padding()
+            }
+            
+            Button(action: {
+                showingAddPlayer = true
+            }) {
+                HStack {
+                    Image(systemName: "person.badge.plus")
+                    Text("Add Player")
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(Color.primaryGreen)
+                .cornerRadius(25)
+            }
+            .padding()
+            .disabled(playerManager.currentRoundPlayers.isEmpty)
+        }
+        .navigationTitle("Manage Players")
+        .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button("Clear All") {
-                    playerManager.clearAllPlayers()
+                    playerManager.clearCurrentRoundPlayers()
                 }
-                .disabled(playerManager.allPlayers.isEmpty)
+                .disabled(playerManager.currentRoundPlayers.isEmpty)
             }
         }
         .sheet(isPresented: $showingAddPlayer) {

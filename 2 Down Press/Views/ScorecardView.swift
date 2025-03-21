@@ -27,6 +27,7 @@ struct ScorecardView: View {
     @EnvironmentObject private var betManager: BetManager
     @EnvironmentObject private var groupManager: GroupManager
     @EnvironmentObject private var gameStateManager: GameStateManager
+    @EnvironmentObject private var playerManager: PlayerManager
     @GestureState private var dragOffset: CGFloat = 0
     @State private var selectedPlayers: [BetComponents.Player] = []
     @State private var expandedPlayers: Set<UUID> = []
@@ -50,32 +51,8 @@ struct ScorecardView: View {
             allPlayers.insert(currentUser)
         }
         
-        // Add players from bets
-        betManager.individualBets.forEach { bet in
-            allPlayers.insert(bet.player1)
-            allPlayers.insert(bet.player2)
-        }
-        
-        betManager.fourBallBets.forEach { bet in
-            allPlayers.insert(bet.team1Player1)
-            allPlayers.insert(bet.team1Player2)
-            allPlayers.insert(bet.team2Player1)
-            allPlayers.insert(bet.team2Player2)
-        }
-        
-        betManager.alabamaBets.forEach { bet in
-            bet.teams.forEach { team in
-                allPlayers.formUnion(team)
-            }
-        }
-        
-        betManager.doDaBets.forEach { bet in
-            allPlayers.formUnion(bet.players)
-        }
-        
-        betManager.skinsBets.forEach { bet in
-            allPlayers.formUnion(bet.players)
-        }
+        // Add players from current round only
+        allPlayers.formUnion(playerManager.currentRoundPlayers)
         
         return Array(allPlayers)
     }
@@ -208,6 +185,7 @@ struct ScorecardView: View {
                 Button("Post") {
                     betManager.mergeGroupScores()
                     betManager.updateScoresAndTeeBox(scores, teeBox)
+                    playerManager.postRound(betManager: betManager, scores: scores)
                     withAnimation {
                         showPostAnimation = true
                         isPosted = true
@@ -220,6 +198,18 @@ struct ScorecardView: View {
                 }
             } message: {
                 Text("This will finalize the scorecard and update The Sheet. Continue?")
+            }
+            .alert("Unpost Round", isPresented: $showUnpostConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Unpost", role: .destructive) {
+                    if playerManager.unpostRound(betManager: betManager, scores: scores) {
+                        withAnimation {
+                            isPosted = false
+                        }
+                    }
+                }
+            } message: {
+                Text("Are you sure you want to unpost these scores?")
             }
             .navigationBarBackButtonHidden(true)
             .navigationBarHidden(true)
@@ -270,6 +260,7 @@ struct ScorecardView: View {
                     hasStartedRound = false
                     elapsedTime = 0
                     isTimerRunning = false
+                    playerManager.prepareForNewRound() // Clear players for new round
                 } else if let savedGame = gameStateManager.currentGame,
                          savedGame.courseId == course.id,
                          savedGame.teeBoxName == teeBox.name {
@@ -1012,10 +1003,11 @@ struct PlayerSelectionView: View {
     @State private var newPlayerEmail = ""
     @State private var showDeleteAlert = false
     @State private var playerToDelete: BetComponents.Player?
+    @State private var showClearAllAlert = false
     
     var availablePlayers: [BetComponents.Player] {
-        // Get all players from playerManager
-        var allPlayers = Set(playerManager.allPlayers)
+        // Get all historical players from playerManager
+        var allPlayers = Set(playerManager.getAvailablePlayers())
         
         // Add current user if available
         if let currentUser = userProfile.currentUser {
@@ -1030,130 +1022,40 @@ struct PlayerSelectionView: View {
     
     var body: some View {
         VStack {
-            // Custom header
-            HStack {
-                Spacer()
-                
-                Text("Select Players")
-                    .font(.title3.bold())
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.title2)
-                        .foregroundColor(.white)
-                }
-            }
-            .padding()
-            .background(Color.primaryGreen)
+            PlayerSelectionHeader(dismiss: dismiss)
             
-            if availablePlayers.isEmpty {
-                VStack {
-                    Text("No Available Players")
-                        .font(.headline)
-                    Text("Add players using the + button")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                }
-                .frame(maxHeight: .infinity)
-            } else {
-                List {
-                    ForEach(availablePlayers) { player in
-                        PlayerSelectionRow(
-                            player: player,
-                            isSelected: tempSelectedPlayers.contains(player.id)
-                        )
-                        .onTapGesture {
-                            if tempSelectedPlayers.contains(player.id) {
-                                tempSelectedPlayers.remove(player.id)
-                            } else {
-                                tempSelectedPlayers.insert(player.id)
-                            }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            if player.id != userProfile.currentUser?.id {
-                                Button(role: .destructive) {
-                                    playerToDelete = player
-                                    showDeleteAlert = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            PlayerSelectionContent(
+                availablePlayers: availablePlayers,
+                tempSelectedPlayers: $tempSelectedPlayers,
+                playerToDelete: $playerToDelete,
+                showDeleteAlert: $showDeleteAlert,
+                userProfile: userProfile
+            )
             
-            HStack {
-                Button(action: {
-                    showAddPlayer = true
-                }) {
-                    HStack {
-                        Image(systemName: "person.badge.plus")
-                        Text("Add Player")
-                    }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(Color.primaryGreen)
-                    .cornerRadius(25)
-                }
-                
-                Button(action: {
-                    let newPlayers = availablePlayers.filter { tempSelectedPlayers.contains($0.id) }
-                    selectedPlayers.append(contentsOf: newPlayers)
-                    dismiss()
-                }) {
-                    Text("Done")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(Color.primaryGreen)
-                        .cornerRadius(25)
-                }
-            }
-            .padding()
+            PlayerSelectionFooter(
+                showAddPlayer: $showAddPlayer,
+                showClearAllAlert: $showClearAllAlert,
+                tempSelectedPlayers: tempSelectedPlayers,
+                availablePlayers: availablePlayers,
+                playerManager: playerManager,
+                dismiss: dismiss
+            )
         }
         .background(Color.gray.opacity(0.1))
         .onAppear {
             tempSelectedPlayers.removeAll()
         }
         .sheet(isPresented: $showAddPlayer) {
-            NavigationView {
-                Form {
-                    Section(header: Text("New Player")) {
-                        TextField("First Name", text: $newPlayerFirstName)
-                            .textInputAutocapitalization(.words)
-                        TextField("Last Name", text: $newPlayerLastName)
-                            .textInputAutocapitalization(.words)
-                        TextField("Email (Optional)", text: $newPlayerEmail)
-                            .textInputAutocapitalization(.never)
-                            .keyboardType(.emailAddress)
-                    }
+            AddPlayerSheet(
+                newPlayerFirstName: $newPlayerFirstName,
+                newPlayerLastName: $newPlayerLastName,
+                newPlayerEmail: $newPlayerEmail,
+                playerManager: playerManager,
+                onDismiss: {
+                    // Refresh the view when a new player is added
+                    tempSelectedPlayers.removeAll()
                 }
-                .navigationTitle("Add Player")
-                .navigationBarItems(
-                    leading: Button("Cancel") {
-                        showAddPlayer = false
-                    },
-                    trailing: Button("Add") {
-                        playerManager.addPlayer(
-                            firstName: newPlayerFirstName,
-                            lastName: newPlayerLastName,
-                            email: newPlayerEmail
-                        )
-                        newPlayerFirstName = ""
-                        newPlayerLastName = ""
-                        newPlayerEmail = ""
-                        showAddPlayer = false
-                    }
-                    .disabled(newPlayerFirstName.isEmpty || newPlayerLastName.isEmpty)
-                )
-            }
+            )
         }
         .alert("Delete Player", isPresented: $showDeleteAlert) {
             Button("Cancel", role: .cancel) {
@@ -1161,7 +1063,8 @@ struct PlayerSelectionView: View {
             }
             Button("Delete", role: .destructive) {
                 if let player = playerToDelete {
-                    playerManager.removePlayer(player)
+                    // Remove from historical players
+                    playerManager.removePlayerFromHistorical(player)
                 }
                 playerToDelete = nil
             }
@@ -1169,6 +1072,182 @@ struct PlayerSelectionView: View {
             if let player = playerToDelete {
                 Text("Are you sure you want to delete \(player.firstName) \(player.lastName)?")
             }
+        }
+        .alert("Clear All Players", isPresented: $showClearAllAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Clear All", role: .destructive) {
+                playerManager.clearAllPlayers()
+            }
+        } message: {
+            Text("Are you sure you want to remove all players? This action cannot be undone.")
+        }
+    }
+}
+
+private struct PlayerSelectionHeader: View {
+    let dismiss: DismissAction
+    
+    var body: some View {
+        HStack {
+            Spacer()
+            Text("Select Players")
+                .font(.title3.bold())
+                .foregroundColor(.white)
+            Spacer()
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark")
+                    .font(.title2)
+                    .foregroundColor(.white)
+            }
+        }
+        .padding()
+        .background(Color.primaryGreen)
+    }
+}
+
+private struct PlayerSelectionContent: View {
+    let availablePlayers: [BetComponents.Player]
+    @Binding var tempSelectedPlayers: Set<UUID>
+    @Binding var playerToDelete: BetComponents.Player?
+    @Binding var showDeleteAlert: Bool
+    let userProfile: UserProfile
+    
+    var body: some View {
+        if availablePlayers.isEmpty {
+            VStack {
+                Text("No Available Players")
+                    .font(.headline)
+                Text("Add players using the + button")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+            }
+            .frame(maxHeight: .infinity)
+        } else {
+            List {
+                ForEach(availablePlayers) { player in
+                    PlayerSelectionRow(
+                        player: player,
+                        isSelected: tempSelectedPlayers.contains(player.id)
+                    )
+                    .onTapGesture {
+                        if tempSelectedPlayers.contains(player.id) {
+                            tempSelectedPlayers.remove(player.id)
+                        } else {
+                            tempSelectedPlayers.insert(player.id)
+                        }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if player.id != userProfile.currentUser?.id {
+                            Button(role: .destructive) {
+                                playerToDelete = player
+                                showDeleteAlert = true
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct PlayerSelectionFooter: View {
+    @Binding var showAddPlayer: Bool
+    @Binding var showClearAllAlert: Bool
+    let tempSelectedPlayers: Set<UUID>
+    let availablePlayers: [BetComponents.Player]
+    let playerManager: PlayerManager
+    let dismiss: DismissAction
+    
+    var body: some View {
+        HStack {
+            Button(action: { showAddPlayer = true }) {
+                HStack {
+                    Image(systemName: "person.badge.plus")
+                    Text("Add Player")
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(Color.primaryGreen)
+                .cornerRadius(25)
+            }
+            
+            Button(action: { showClearAllAlert = true }) {
+                HStack {
+                    Image(systemName: "trash")
+                    Text("Clear All")
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(Color.red)
+                .cornerRadius(25)
+            }
+            
+            Button(action: {
+                let newPlayers = availablePlayers.filter { tempSelectedPlayers.contains($0.id) }
+                for player in newPlayers {
+                    playerManager.addPlayerToCurrentRound(player)
+                }
+                dismiss()
+            }) {
+                Text("Done")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.primaryGreen)
+                    .cornerRadius(25)
+            }
+        }
+        .padding()
+    }
+}
+
+private struct AddPlayerSheet: View {
+    @Binding var newPlayerFirstName: String
+    @Binding var newPlayerLastName: String
+    @Binding var newPlayerEmail: String
+    let playerManager: PlayerManager
+    let onDismiss: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("New Player")) {
+                    TextField("First Name", text: $newPlayerFirstName)
+                        .textInputAutocapitalization(.words)
+                    TextField("Last Name", text: $newPlayerLastName)
+                        .textInputAutocapitalization(.words)
+                    TextField("Email (Optional)", text: $newPlayerEmail)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.emailAddress)
+                }
+            }
+            .navigationTitle("Add Player")
+            .navigationBarItems(
+                leading: Button("Cancel") {
+                    dismiss()
+                },
+                trailing: Button("Add") {
+                    playerManager.addPlayer(
+                        firstName: newPlayerFirstName,
+                        lastName: newPlayerLastName,
+                        email: newPlayerEmail
+                    )
+                    newPlayerFirstName = ""
+                    newPlayerLastName = ""
+                    newPlayerEmail = ""
+                    onDismiss()
+                    dismiss()
+                }
+                .disabled(newPlayerFirstName.isEmpty || newPlayerLastName.isEmpty)
+            )
         }
     }
 }
