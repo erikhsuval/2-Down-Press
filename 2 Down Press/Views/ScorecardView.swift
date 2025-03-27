@@ -142,7 +142,9 @@ struct ScorecardView: View {
                         showMenu: $showMenu,
                         showPlayerSelection: $showPlayerSelection,
                         showBetCreation: $showBetCreation,
-                        showLeaderboard: $showLeaderboard
+                        showLeaderboard: $showLeaderboard,
+                        scores: $scores,
+                        players: players
                     )
                     .frame(maxHeight: geometry.size.height * 0.15)
                     
@@ -406,45 +408,39 @@ private struct ScorecardMainContentView: View {
     let currentPlayerScores: [String]
     let updateScore: (BetComponents.Player, Int, String) -> Void
     let geometry: GeometryProxy
+    @State private var showingBackNine = false
+    @GestureState private var dragOffset: CGFloat = 0
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                HStack {
-                    Text("Playing from:")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                    Text(teeBox.name)
-                        .font(.headline)
-                        .foregroundColor(.primaryGreen)
-                    Spacer()
+        VStack(spacing: 8) {
+            ScorecardGridView(
+                holes: showingBackNine ? Array(teeBox.holes.suffix(9)) : Array(teeBox.holes.prefix(9)),
+                scores: showingBackNine ? Array(currentPlayerScores.suffix(9)) : Array(currentPlayerScores.prefix(9)),
+                onScoreUpdate: { index, score in
+                    updateScore(currentPlayer, index + (showingBackNine ? 9 : 0), score)
                 }
-                .padding(.horizontal)
-                
-                ScorecardGridView(
-                    holes: Array(teeBox.holes.prefix(9)),
-                    scores: Array(currentPlayerScores.prefix(9)),
-                    onScoreUpdate: { index, score in
-                        updateScore(currentPlayer, index, score)
+            )
+            .gesture(
+                DragGesture()
+                    .updating($dragOffset) { value, state, _ in
+                        state = value.translation.width
                     }
-                )
-                
-                ScorecardGridView(
-                    holes: Array(teeBox.holes.suffix(9)),
-                    scores: Array(currentPlayerScores.suffix(9)),
-                    onScoreUpdate: { index, score in
-                        updateScore(currentPlayer, index + 9, score)
+                    .onEnded { value in
+                        let threshold: CGFloat = 50
+                        if value.translation.width > threshold && showingBackNine {
+                            withAnimation { showingBackNine = false }
+                        } else if value.translation.width < -threshold && !showingBackNine {
+                            withAnimation { showingBackNine = true }
+                        }
                     }
-                )
-                
-                ScorecarTotalsView(
-                    holes: teeBox.holes,
-                    scores: currentPlayerScores
-                )
-            }
-            .padding(.bottom)
+            )
+            
+            ScorecarTotalsView(
+                holes: teeBox.holes,
+                scores: currentPlayerScores
+            )
         }
-        .frame(maxHeight: geometry.size.height * 0.63)
+        .frame(maxHeight: geometry.size.height * 0.73)
     }
 }
 
@@ -457,6 +453,8 @@ private struct ScorecardHeaderView: View {
     @EnvironmentObject private var userProfile: UserProfile
     @Binding var showBetCreation: Bool
     @Binding var showLeaderboard: Bool
+    @Binding var scores: [UUID: [String]]
+    let players: [BetComponents.Player]
     
     var body: some View {
         VStack(spacing: 0) {
@@ -472,71 +470,112 @@ private struct ScorecardHeaderView: View {
                 
                 Spacer()
                 
-                VStack(spacing: 4) {
-                    Text(course.name)
-                        .font(.custom("Avenir-Black", size: 24))
+                // Add test button
+                Button(action: populateTestScores) {
+                    Text("Test Scores")
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
-                    
-                    if let currentGroup = groupManager.currentGroup,
-                       let groupIndex = groupManager.currentGroupIndex {
-                        HStack {
-                            Text("Group \(groupIndex + 1) • \(currentGroup.count) Players")
-                                .font(.subheadline)
-                                .foregroundColor(.white.opacity(0.8))
-                            Button(action: { showGroupSetup = true }) {
-                                Image(systemName: "pencil.circle")
-                                    .foregroundColor(.white)
-                            }
-                        }
-                    } else {
-                        Button(action: { showGroupSetup = true }) {
-                            Text("Setup Groups")
-                                .font(.subheadline)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 4)
-                                .background(Color.white.opacity(0.2))
-                                .cornerRadius(12)
-                        }
-                    }
-                }
-                
-                Spacer()
-                
-                Button(action: { showPlayerSelection = true }) {
-                    Image(systemName: "person.badge.plus")
-                        .font(.title2)
-                        .foregroundColor(.white)
-                        .padding(8)
-                        .background(Color.black.opacity(0.2))
-                        .clipShape(Circle())
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.primaryGreen)
+                        .clipShape(Capsule())
                 }
             }
             .padding(.horizontal)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
-            .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [Color.primaryGreen, Color.primaryGreen.opacity(0.9)]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
+            .padding(.vertical, 8)
             
-            // Navigation Tabs
-            ScorecardNavigationTabs(
-                showLeaderboard: $showLeaderboard,
-                showBetCreation: $showBetCreation,
-                selectedGroupPlayers: groupManager.currentGroup ?? [],
-                currentPlayerIndex: 0
-            )
+            VStack(spacing: 4) {
+                Text(course.name)
+                    .font(.custom("Avenir-Black", size: 24))
+                    .foregroundColor(.white)
+                
+                if let currentGroup = groupManager.currentGroup,
+                   let groupIndex = groupManager.currentGroupIndex {
+                    HStack {
+                        Text("Group \(groupIndex + 1) • \(currentGroup.count) Players")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
+                        Button(action: { showGroupSetup = true }) {
+                            Image(systemName: "pencil.circle")
+                                .foregroundColor(.white)
+                        }
+                    }
+                } else {
+                    Button(action: { showGroupSetup = true }) {
+                        Text("Setup Groups")
+                            .font(.subheadline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(0.2))
+                            .cornerRadius(12)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            Button(action: { showPlayerSelection = true }) {
+                Image(systemName: "person.badge.plus")
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .padding(8)
+                    .background(Color.black.opacity(0.2))
+                    .clipShape(Circle())
+            }
         }
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.primaryGreen, Color.primaryGreen.opacity(0.9)]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
+        
+        // Navigation Tabs
+        ScorecardNavigationTabs(
+            showLeaderboard: $showLeaderboard,
+            showBetCreation: $showBetCreation,
+            selectedGroupPlayers: groupManager.currentGroup ?? [],
+            currentPlayerIndex: 0
+        )
         .sheet(isPresented: $showGroupSetup) {
             NavigationView {
                 GroupSetupView(groupManager: groupManager)
                     .environmentObject(groupManager)
                     .environmentObject(userProfile)
             }
+        }
+    }
+    
+    private func populateTestScores() {
+        var newScores: [UUID: [String]] = [:]
+        
+        // Define test scores for each player
+        let testScores: [String: [String]] = [
+            "Nate Weant": ["4","4","5","4","5","6","4","3","3","5","4","4","4","5","3","5","4","3"],
+            "Rolf Morstead": ["4","4","5","3","5","7","4","4","3","4","4","4","6","6","3","6","4","5"],
+            "Chicken Man": ["5","5","4","4","3","7","4","5","4","4","5","4","4","6","4","5","4","4"],
+            "Erik Hsu": ["2","5","5","4","4","6","6","4","4","4","3","4","3","6","3","4","3","4"],
+            "Wade House": ["4","4","5","4","4","7","4","3","3","4","5","4","4","5","3","4","3","4"],
+            "William Sparks": ["5","5","6","3","6","6","6","5","3","4","5","4","5","4","3","6","3","6"],
+            "Rocky Burks": ["4","5","7","5","4","5","5","4","4","5","5","3","5","6","3","5","4","4"]
+        ]
+        
+        // Map scores to players by matching first and last names
+        for player in players {
+            let fullName = "\(player.firstName) \(player.lastName)"
+            if let scores = testScores[fullName] {
+                newScores[player.id] = scores
+            }
+        }
+        
+        // Only update scores if we found matches
+        if !newScores.isEmpty {
+            scores = newScores
         }
     }
 }
@@ -680,138 +719,113 @@ struct ScorecardGridView: View {
     let holes: [BetComponents.HoleInfo]
     let scores: [String]
     let onScoreUpdate: (Int, String) -> Void
+    @State private var focusedHoleIndex: Int?
     
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            VStack(spacing: 1) {
-                // Header row
-                HStack(spacing: 1) {
+        VStack(spacing: 1) {
+            // Header row
+            HStack {
+                Group {
                     Text("Hole")
-                        .frame(width: 80)
-                        .font(.subheadline.bold())
-                        .foregroundColor(.white)
-                    
-                    ForEach(holes) { hole in
-                        Text("\(hole.number)")
-                            .frame(width: 80)
-                            .font(.subheadline.bold())
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding(.vertical, 8)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [Color.primaryGreen.opacity(0.95), Color.primaryGreen]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                
-                // Par row
-                HStack(spacing: 1) {
-                    Text("Par")
-                        .frame(width: 80)
-                        .font(.subheadline.bold())
-                        .foregroundColor(.white)
-                    
-                    ForEach(holes) { hole in
-                        Text("\(hole.par)")
-                            .frame(width: 80)
-                            .font(.subheadline.bold())
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding(.vertical, 8)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [Color.deepNavyBlue.opacity(0.95), Color.deepNavyBlue]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                
-                // Yardage row
-                HStack(spacing: 1) {
+                        .frame(width: 40)
                     Text("Yards")
-                        .frame(width: 80)
-                        .font(.subheadline.bold())
-                        .foregroundColor(.white)
-                    
-                    ForEach(holes) { hole in
-                        Text("\(hole.yardage)")
-                            .frame(width: 80)
-                            .font(.subheadline.bold())
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding(.vertical, 8)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [Color.primaryGreen.opacity(0.8), Color.primaryGreen.opacity(0.9)]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                
-                // Score row
-                HStack(spacing: 1) {
+                        .frame(width: 60)
+                    Text("Par")
+                        .frame(width: 40)
                     Text("Score")
-                        .frame(width: 80)
-                        .font(.subheadline.bold())
-                        .foregroundColor(.white)
-                    
-                    ForEach(Array(holes.indices), id: \.self) { index in
-                        ScoreDisplayView(
-                            score: scores[index],
-                            par: holes[index].par,
-                            scoreText: Binding(
-                                get: { scores[index] },
-                                set: { onScoreUpdate(index, $0) }
-                            )
-                        )
-                    }
+                        .frame(width: 100)
                 }
-                .padding(.vertical, 8)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [Color.deepNavyBlue.opacity(0.7), Color.deepNavyBlue.opacity(0.8)]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+                .font(.subheadline.bold())
+                .foregroundColor(.white)
+            }
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.primaryGreen, Color.deepNavyBlue]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            
+            // Hole rows
+            ForEach(holes.indices, id: \.self) { index in
+                HoleRowView(
+                    hole: holes[index],
+                    score: scores[index],
+                    holeIndex: index,
+                    isLastHole: index == holes.count - 1,
+                    focusedHoleIndex: $focusedHoleIndex,
+                    onScoreUpdate: { onScoreUpdate(index, $0) }
                 )
                 
-                // Emoji row
-                HStack(spacing: 1) {
-                    Text("")
-                        .frame(width: 80)
-                    
-                    ForEach(Array(holes.indices), id: \.self) { index in
-                        if let score = Int(scores[index]),
-                           let emoji = emojiForScore(score, par: holes[index].par) {
-                            Text(emoji)
-                                .font(.system(size: 14))
-                                .frame(width: 80)
-                        } else {
-                            Text("")
-                                .frame(width: 80)
-                        }
-                    }
+                if index < holes.count - 1 {
+                    Divider()
+                        .background(Color.gray.opacity(0.2))
                 }
-                .padding(.vertical, 4)
-                .background(Color.white)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
-            .padding(.horizontal)
         }
-        .scrollDismissesKeyboard(.immediately)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.primaryGreen.opacity(0.1), Color.deepNavyBlue.opacity(0.1)]),
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
     }
+}
+
+private struct HoleRowView: View {
+    let hole: BetComponents.HoleInfo
+    let score: String
+    let holeIndex: Int
+    let isLastHole: Bool
+    @Binding var focusedHoleIndex: Int?
+    let onScoreUpdate: (String) -> Void
     
-    private func emojiForScore(_ score: Int, par: Int) -> String? {
-        if score == 1 { return "⭐️" }  // Score of 1
-        if score == 2 { return "✌️" }  // Score of 2
-        if score > par + 2 { return "💩" }  // Triple bogey or worse
-        return nil
+    var body: some View {
+        HStack {
+            Text("\(hole.number)")
+                .frame(width: 40)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.primaryGreen)
+            
+            Text("\(hole.yardage)")
+                .frame(width: 60)
+                .font(.system(size: 16))
+                .foregroundColor(.deepNavyBlue)
+            
+            Text("\(hole.par)")
+                .frame(width: 40)
+                .font(.system(size: 16))
+                .foregroundColor(.primaryGreen)
+            
+            ScoreDisplayView(
+                score: score,
+                par: hole.par,
+                holeIndex: holeIndex,
+                isLastHole: isLastHole,
+                scoreText: Binding(
+                    get: { score },
+                    set: { onScoreUpdate($0) }
+                ),
+                focusedHoleIndex: $focusedHoleIndex
+            )
+        }
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    hole.number.isMultiple(of: 2) ? Color.primaryGreen.opacity(0.05) : Color.white,
+                    hole.number.isMultiple(of: 2) ? Color.deepNavyBlue.opacity(0.1) : Color.white.opacity(0.95)
+                ]),
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        )
     }
 }
 
@@ -941,9 +955,14 @@ extension View {
 struct ScoreDisplayView: View {
     let score: String
     let par: Int
+    let holeIndex: Int
+    let isLastHole: Bool
     @Binding var scoreText: String
+    @Binding var focusedHoleIndex: Int?
     @State private var showClearButton = false
-    @FocusState private var isFocused: Bool
+    @State private var previousScore: String = ""
+    @State private var autoDismissTask: DispatchWorkItem?
+    @FocusState private var isTextFieldFocused: Bool
     
     private var scoreInt: Int? {
         if scoreText == "❌" { return nil }
@@ -951,29 +970,92 @@ struct ScoreDisplayView: View {
     }
     
     private func colorForScore(_ score: Int) -> Color {
-        if score == 1 || score < par - 1 { return .secondaryGold }  // Eagle or better
+        if score == 1 { return .secondaryGold }     // Ace/Hole in One
+        if score < par - 1 { return .secondaryGold } // Eagle or better
         if score == par - 1 { return .red }         // Birdie
         if score == par { return .primaryGreen }    // Par
         if score == par + 1 { return .blue }        // Bogey
-        return .purple                              // Double bogey or worse
+        if score == par + 2 { return .purple }      // Double Bogey
+        return .purple                              // Triple Bogey or worse
+    }
+    
+    private func emojiForScore(_ score: Int) -> String? {
+        if score == 1 { return "⭐️" }      // Ace
+        if score == 2 { return "✌️" }      // Deuce
+        if score >= par + 3 { return "💩" } // Triple bogey or worse
+        return nil
+    }
+    
+    private func startAutoDismissTimer() {
+        autoDismissTask?.cancel()
+        autoDismissTask = DispatchWorkItem {
+            if isTextFieldFocused {
+                isTextFieldFocused = false
+            }
+        }
+        if let task = autoDismissTask {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0, execute: task)
+        }
     }
     
     @ViewBuilder
     private func scoreTextField() -> some View {
-        TextField("", text: $scoreText)
-            .keyboardType(.numberPad)
-            .multilineTextAlignment(.center)
-            .frame(width: 80)
-            .font(.system(size: 20, weight: .bold))
-            .foregroundColor(scoreText == "❌" ? .red : (scoreInt.map(colorForScore) ?? .primary))
-            .frame(width: 80, height: 50)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isFocused ? Color.primaryGreen : Color.gray.opacity(0.3), lineWidth: isFocused ? 2 : 1)
-            )
-            .focused($isFocused)
+        ZStack(alignment: .trailing) {
+            // Score input field
+            TextField("", text: $scoreText)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+                .frame(width: 60)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(scoreText == "❌" ? .red : (scoreInt.map(colorForScore) ?? .primary))
+                .textFieldStyle(PlainTextFieldStyle())
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(focusedHoleIndex == holeIndex ? Color.primaryGreen : Color.clear, 
+                               lineWidth: focusedHoleIndex == holeIndex ? 2 : 0)
+                )
+                .focused($isTextFieldFocused)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        if isTextFieldFocused {
+                            HStack {
+                                Button("❌") {
+                                    withAnimation {
+                                        scoreText = "❌"
+                                    }
+                                }
+                                .foregroundColor(.red)
+                                Spacer()
+                                Button("Clear") {
+                                    withAnimation {
+                                        scoreText = ""
+                                    }
+                                }
+                                .foregroundColor(.red)
+                                Button("Done") {
+                                    isTextFieldFocused = false
+                                }
+                                .foregroundColor(.primaryGreen)
+                            }
+                        }
+                    }
+                }
+            
+            // Emoji positioned to the right
+            if let score = scoreInt,
+               let emoji = emojiForScore(score) {
+                Text(emoji)
+                    .font(.system(size: 24))
+                    .opacity(0.7)
+                    .offset(x: 40) // Position emoji to the right of the score box
+            }
+        }
+        .frame(width: 100, height: 44) // Fixed frame to prevent layout shifts
+        .onTapGesture {
+            focusedHoleIndex = holeIndex
+            isTextFieldFocused = true
+            startAutoDismissTimer()
+        }
     }
     
     var body: some View {
@@ -986,7 +1068,32 @@ struct ScoreDisplayView: View {
                 }
             }
         }
-        .keyboardToolbar(scoreText: $scoreText, isFocused: $isFocused)
+        .onChange(of: focusedHoleIndex) { _, newValue in
+            isTextFieldFocused = newValue == holeIndex
+            if isTextFieldFocused {
+                startAutoDismissTimer()
+            }
+        }
+        .onChange(of: scoreText) { oldValue, newValue in
+            if (Int(newValue) != nil || newValue == "❌") && newValue != oldValue {
+                startAutoDismissTimer()
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if scoreText == newValue {
+                        if !isLastHole {
+                            focusedHoleIndex = holeIndex + 1
+                            isTextFieldFocused = true // Keep the keypad open
+                        } else {
+                            focusedHoleIndex = nil
+                            isTextFieldFocused = false
+                        }
+                    }
+                }
+            }
+        }
+        .onDisappear {
+            autoDismissTask?.cancel()
+        }
     }
 }
 
@@ -1297,8 +1404,8 @@ struct LeaderboardView: View {
     @State private var showImportAlert = false
     @State private var importedScoreData: ShareableScoreData?
     @State private var expandedPlayers: Set<UUID> = []
-    @State private var showUnpostConfirmation = false
     @State private var showPostConfirmation = false
+    @State private var showUnpostConfirmation = false
     @State private var showPostAnimation = false
     @State private var isPosted = false
     
@@ -1914,11 +2021,13 @@ struct ScoreDecorationModifier: ViewModifier {
     let par: Int
     
     private func colorForScore(_ score: Int) -> Color {
-        if score == 1 || score < par - 1 { return .secondaryGold }  // Eagle or better
+        if score == 1 { return .secondaryGold }     // Ace/Hole in One
+        if score < par - 1 { return .secondaryGold } // Eagle or better
         if score == par - 1 { return .red }         // Birdie
         if score == par { return .primaryGreen }    // Par
         if score == par + 1 { return .blue }        // Bogey
-        return .purple                              // Double bogey or worse
+        if score == par + 2 { return .purple }      // Double Bogey
+        return .purple                              // Triple Bogey or worse
     }
     
     func body(content: Content) -> some View {
@@ -1929,30 +2038,30 @@ struct ScoreDecorationModifier: ViewModifier {
                     ZStack {
                         Circle()
                             .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 40, height: 40) // Increased size
                         Circle()
                             .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 42, height: 42)
+                            .frame(width: 46, height: 46) // Increased size
                     }
                 } else if score == par - 1 {
                     // Single circle for birdie
                     Circle()
                         .stroke(colorForScore(score), lineWidth: 1.5)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 40, height: 40) // Increased size
                 } else if score == par + 1 {
                     // Single square for bogey
                     Rectangle()
                         .stroke(colorForScore(score), lineWidth: 1.5)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 40, height: 40) // Increased size
                 } else if score == par + 2 {
                     // Double square for double bogey
                     ZStack {
                         Rectangle()
                             .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 40, height: 40) // Increased size
                         Rectangle()
                             .stroke(colorForScore(score), lineWidth: 1.5)
-                            .frame(width: 42, height: 42)
+                            .frame(width: 46, height: 46) // Increased size
                     }
                 }
             }

@@ -109,9 +109,9 @@ class BetManager: ObservableObject {
         for bet in fourBallBets {
             let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)
             if bet.team1Player1.id == player.id || bet.team1Player2.id == player.id {
-                total += winnings / 2
+                total += winnings
             } else if bet.team2Player1.id == player.id || bet.team2Player2.id == player.id {
-                total -= winnings / 2
+                total -= winnings
             }
         }
         
@@ -131,16 +131,9 @@ class BetManager: ObservableObject {
         
         // Calculate Alabama bet winnings
         for bet in alabamaBets {
-            if let teamIndex = bet.teams.firstIndex(where: { team in team.contains { $0.id == player.id } }) {
-                for otherTeamIndex in bet.teams.indices where otherTeamIndex != teamIndex {
-                    let results = bet.calculateTeamResults(
-                        playerTeamIndex: teamIndex,
-                        otherTeamIndex: otherTeamIndex,
-                        scores: playerScores,
-                        teeBox: teeBox
-                    )
-                    total += results.total
-                }
+            // Check if player is either a team member or the swing man
+            if let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)[player.id] {
+                total += winnings
             }
         }
         

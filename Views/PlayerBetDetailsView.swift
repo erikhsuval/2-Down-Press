@@ -70,7 +70,7 @@ struct PlayerBetDetailsView: View {
                         Spacer()
                         let winnings = bet.calculateWinnings(playerScores: playerScores, teeBox: teeBox)
                         let isTeam1 = bet.team1Player1.id == player.id || bet.team1Player2.id == player.id
-                        let amount = isTeam1 ? winnings / 2 : -winnings / 2
+                        let amount = isTeam1 ? winnings : -winnings
                         Text(String(format: "$%.0f", amount))
                             .foregroundColor(amount >= 0 ? .primaryGreen : .red)
                     }

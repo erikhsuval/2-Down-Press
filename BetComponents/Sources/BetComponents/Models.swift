@@ -304,10 +304,28 @@ public struct IndividualMatchBet: Identifiable, Codable {
         var backNineBirdies1 = 0
         var backNineBirdies2 = 0
         
+        // Helper function to get score value
+        func getScore(scoreStr: String, par: Int) -> Int? {
+            if scoreStr == "X" || scoreStr == "❌" {
+                return par * 2
+            }
+            return Int(scoreStr)
+        }
+        
+        // Helper function to count birdies
+        func countBirdies(score: Int, par: Int) -> Int {
+            let underPar = par - score
+            if underPar > 0 {
+                return underPar  // Will return 1 for birdie, 2 for eagle, 3 for double eagle
+            }
+            return 0
+        }
+        
         // Calculate front nine results through hole 8
         for holeIndex in 0..<8 {
-            guard let score1 = Int(player1Scores[holeIndex]),
-                  let score2 = Int(player2Scores[holeIndex]) else {
+            let par = teeBoxToUse.holes[holeIndex].par
+            guard let score1 = getScore(scoreStr: player1Scores[holeIndex], par: par),
+                  let score2 = getScore(scoreStr: player2Scores[holeIndex], par: par) else {
                 continue
             }
             
@@ -316,10 +334,9 @@ public struct IndividualMatchBet: Identifiable, Codable {
             let holeWinnings = holeDiff < 0 ? perHoleAmount : (holeDiff > 0 ? -perHoleAmount : 0)
             frontNineWinnings += holeWinnings
             
-            // Count birdies
-            let par = teeBoxToUse.holes[holeIndex].par
-            if score1 < par { frontNineBirdies1 += 1 }
-            if score2 < par { frontNineBirdies2 += 1 }
+            // Count birdies (including eagles and double eagles)
+            frontNineBirdies1 += countBirdies(score: score1, par: par)
+            frontNineBirdies2 += countBirdies(score: score2, par: par)
         }
         
         // Calculate front nine birdie differential through hole 8
@@ -329,22 +346,29 @@ public struct IndividualMatchBet: Identifiable, Codable {
         
         // Handle hole 9 press if applicable
         var finalFrontNineTotal = frontNineTotalThrough8
-        if pressOn9and18,
-           let score1 = Int(player1Scores[8]),
-           let score2 = Int(player2Scores[8]) {
-            let hole9Diff = score1 - score2
-            if hole9Diff < 0 { // Player 1 wins hole 9
-                finalFrontNineTotal = frontNineTotalThrough8 * 2
-            } else if hole9Diff > 0 { // Player 2 wins hole 9
-                finalFrontNineTotal = 0
+        if pressOn9and18 {
+            let par = teeBoxToUse.holes[8].par
+            if let score1 = getScore(scoreStr: player1Scores[8], par: par),
+               let score2 = getScore(scoreStr: player2Scores[8], par: par) {
+                let hole9Diff = score1 - score2
+                if hole9Diff < 0 { // Player 1 wins hole 9
+                    finalFrontNineTotal = frontNineTotalThrough8 * 2
+                } else if hole9Diff > 0 { // Player 2 wins hole 9
+                    finalFrontNineTotal = 0
+                }
+                // If tied, keep original total
+                
+                // Add birdies for hole 9
+                frontNineBirdies1 += countBirdies(score: score1, par: par)
+                frontNineBirdies2 += countBirdies(score: score2, par: par)
             }
-            // If tied, keep original total
         }
         
         // Calculate back nine results through hole 17
         for holeIndex in 9..<17 {
-            guard let score1 = Int(player1Scores[holeIndex]),
-                  let score2 = Int(player2Scores[holeIndex]) else {
+            let par = teeBoxToUse.holes[holeIndex].par
+            guard let score1 = getScore(scoreStr: player1Scores[holeIndex], par: par),
+                  let score2 = getScore(scoreStr: player2Scores[holeIndex], par: par) else {
                 continue
             }
             
@@ -352,9 +376,9 @@ public struct IndividualMatchBet: Identifiable, Codable {
             let holeWinnings = holeDiff < 0 ? perHoleAmount : (holeDiff > 0 ? -perHoleAmount : 0)
             backNineWinnings += holeWinnings
             
-            let par = teeBoxToUse.holes[holeIndex].par
-            if score1 < par { backNineBirdies1 += 1 }
-            if score2 < par { backNineBirdies2 += 1 }
+            // Count birdies (including eagles and double eagles)
+            backNineBirdies1 += countBirdies(score: score1, par: par)
+            backNineBirdies2 += countBirdies(score: score2, par: par)
         }
         
         // Calculate back nine birdie differential through hole 17
@@ -364,16 +388,22 @@ public struct IndividualMatchBet: Identifiable, Codable {
         
         // Handle hole 18 press if applicable
         var finalBackNineTotal = backNineTotalThrough17
-        if pressOn9and18,
-           let score1 = Int(player1Scores[17]),
-           let score2 = Int(player2Scores[17]) {
-            let hole18Diff = score1 - score2
-            if hole18Diff < 0 { // Player 1 wins hole 18
-                finalBackNineTotal = backNineTotalThrough17 * 2
-            } else if hole18Diff > 0 { // Player 2 wins hole 18
-                finalBackNineTotal = 0
+        if pressOn9and18 {
+            let par = teeBoxToUse.holes[17].par
+            if let score1 = getScore(scoreStr: player1Scores[17], par: par),
+               let score2 = getScore(scoreStr: player2Scores[17], par: par) {
+                let hole18Diff = score1 - score2
+                if hole18Diff < 0 { // Player 1 wins hole 18
+                    finalBackNineTotal = backNineTotalThrough17 * 2
+                } else if hole18Diff > 0 { // Player 2 wins hole 18
+                    finalBackNineTotal = 0
+                }
+                // If tied, keep original total
+                
+                // Add birdies for hole 18
+                backNineBirdies1 += countBirdies(score: score1, par: par)
+                backNineBirdies2 += countBirdies(score: score2, par: par)
             }
-            // If tied, keep original total
         }
         
         return finalFrontNineTotal + finalBackNineTotal
@@ -418,23 +448,42 @@ public struct FourBallMatchBet: Identifiable, Codable {
         var birdiesTeam1 = 0
         var birdiesTeam2 = 0
         
+        // Helper function to get score value
+        func getScore(scoreStr: String, par: Int) -> Int? {
+            if scoreStr == "X" || scoreStr == "❌" {
+                return par * 2
+            }
+            return Int(scoreStr)
+        }
+        
+        // Helper function to count birdies
+        func countBirdies(score: Int, par: Int) -> Int {
+            let underPar = par - score
+            if underPar > 0 {
+                return underPar  // Will return 1 for birdie, 2 for eagle, 3 for double eagle
+            }
+            return 0
+        }
+        
         // Calculate hole-by-hole results
         for holeIndex in 0..<18 {
+            let par = teeBoxToUse.holes[holeIndex].par
+            
             // Get valid scores for each team
             let team1Scores = [
-                Int(team1Player1Scores[holeIndex]),
-                Int(team1Player2Scores[holeIndex])
+                getScore(scoreStr: team1Player1Scores[holeIndex], par: par),
+                getScore(scoreStr: team1Player2Scores[holeIndex], par: par)
             ].compactMap { $0 }
             
             let team2Scores = [
-                Int(team2Player1Scores[holeIndex]),
-                Int(team2Player2Scores[holeIndex])
+                getScore(scoreStr: team2Player1Scores[holeIndex], par: par),
+                getScore(scoreStr: team2Player2Scores[holeIndex], par: par)
             ].compactMap { $0 }
             
             // Skip hole if either team is missing scores
             guard !team1Scores.isEmpty && !team2Scores.isEmpty else { continue }
             
-            // Get best score for each team
+            // Get best score for each team (for hole winner calculation)
             let team1Best = team1Scores.min() ?? 0
             let team2Best = team2Scores.min() ?? 0
             
@@ -449,10 +498,13 @@ public struct FourBallMatchBet: Identifiable, Codable {
                 backNineWinnings += holeWinnings
             }
             
-            // Count birdies
-            let par = teeBoxToUse.holes[holeIndex].par
-            if team1Best < par { birdiesTeam1 += 1 }
-            if team2Best < par { birdiesTeam2 += 1 }
+            // Count birdies from all valid scores for each team
+            for score in team1Scores {
+                birdiesTeam1 += countBirdies(score: score, par: par)
+            }
+            for score in team2Scores {
+                birdiesTeam2 += countBirdies(score: score, par: par)
+            }
         }
         
         // Add front nine winnings
@@ -507,22 +559,35 @@ public struct AlabamaBet: Identifiable, Codable {
     ) -> Int {
         var totalScore = 0
         for hole in holes {
-            var lowestScore = Int.max
-            // Count team members' scores
+            var allScores: [Int] = []
+            let par = teeBox.holes[hole].par
+            
+            // Collect team members' scores
             for player in team {
-                if let scoreStr = scores[player.id]?[hole],
-                   let score = Int(scoreStr) {
-                    lowestScore = min(lowestScore, score)
+                if let scoreStr = scores[player.id]?[hole] {
+                    if scoreStr == "X" || scoreStr == "❌" {
+                        allScores.append(par * 2)
+                    } else if let score = Int(scoreStr) {
+                        allScores.append(score)
+                    }
                 }
             }
-            // Always count swing man's score if present
+            
+            // Always count swing man's score for ALL teams
             if let swingMan = swingMan,
-               let scoreStr = scores[swingMan.id]?[hole],
-               let score = Int(scoreStr) {
-                lowestScore = min(lowestScore, score)
+               let scoreStr = scores[swingMan.id]?[hole] {
+                if scoreStr == "X" || scoreStr == "❌" {
+                    allScores.append(par * 2)
+                } else if let score = Int(scoreStr) {
+                    allScores.append(score)
+                }
             }
-            if lowestScore != Int.max {
-                totalScore += lowestScore
+            
+            // Sort scores and take the lowest N scores where N is countingScores
+            let sortedScores = allScores.sorted()
+            let scoresToCount = min(countingScores, sortedScores.count)
+            if scoresToCount > 0 {
+                totalScore += sortedScores.prefix(scoresToCount).reduce(0, +)
             }
         }
         return totalScore
@@ -538,7 +603,9 @@ public struct AlabamaBet: Identifiable, Codable {
         teamIndex: Int,
         teeBox: TeeBox
     ) -> Int {
-        var lowBallWins = 0
+        var teamTotal = 0
+        var otherTeamTotal = 0
+        
         for hole in holes {
             let par = teeBox.holes[hole].par
             
@@ -546,18 +613,17 @@ public struct AlabamaBet: Identifiable, Codable {
             var teamLowestScore = Int.max
             for player in team {
                 if let scoreStr = scores[player.id]?[hole] {
-                    if scoreStr == "X" {
+                    if scoreStr == "X" || scoreStr == "❌" {
                         teamLowestScore = min(teamLowestScore, par * 2)
                     } else if let score = Int(scoreStr) {
                         teamLowestScore = min(teamLowestScore, score)
                     }
                 }
             }
-            // Include swing man's score if they're on this team
+            // Always count swing man's score for ALL teams
             if let swingMan = swingMan,
-               swingManTeamIndex == teamIndex,
                let scoreStr = scores[swingMan.id]?[hole] {
-                if scoreStr == "X" {
+                if scoreStr == "X" || scoreStr == "❌" {
                     teamLowestScore = min(teamLowestScore, par * 2)
                 } else if let score = Int(scoreStr) {
                     teamLowestScore = min(teamLowestScore, score)
@@ -568,18 +634,17 @@ public struct AlabamaBet: Identifiable, Codable {
             var otherTeamLowestScore = Int.max
             for player in otherTeam {
                 if let scoreStr = scores[player.id]?[hole] {
-                    if scoreStr == "X" {
+                    if scoreStr == "X" || scoreStr == "❌" {
                         otherTeamLowestScore = min(otherTeamLowestScore, par * 2)
                     } else if let score = Int(scoreStr) {
                         otherTeamLowestScore = min(otherTeamLowestScore, score)
                     }
                 }
             }
-            // Include swing man's score if they're on the other team
+            // Always count swing man's score for ALL teams
             if let swingMan = swingMan,
-               swingManTeamIndex != teamIndex,
                let scoreStr = scores[swingMan.id]?[hole] {
-                if scoreStr == "X" {
+                if scoreStr == "X" || scoreStr == "❌" {
                     otherTeamLowestScore = min(otherTeamLowestScore, par * 2)
                 } else if let score = Int(scoreStr) {
                     otherTeamLowestScore = min(otherTeamLowestScore, score)
@@ -588,18 +653,19 @@ public struct AlabamaBet: Identifiable, Codable {
             
             // Only count if both teams have valid scores
             if teamLowestScore != Int.max && otherTeamLowestScore != Int.max {
-                // Team wins if they have the lower score
-                if teamLowestScore < otherTeamLowestScore {
-                    lowBallWins += 1
-                }
-                // Other team wins if they have the lower score
-                else if otherTeamLowestScore < teamLowestScore {
-                    lowBallWins -= 1
-                }
-                // Tie results in no change
+                teamTotal += teamLowestScore
+                otherTeamTotal += otherTeamLowestScore
             }
         }
-        return lowBallWins
+        
+        // Return 1 if team won (lower score), -1 if team lost (higher score), 0 if tied
+        if teamTotal < otherTeamTotal {
+            return 1
+        } else if teamTotal > otherTeamTotal {
+            return -1
+        } else {
+            return 0
+        }
     }
     
     public func countTeamBirdies(
@@ -609,22 +675,38 @@ public struct AlabamaBet: Identifiable, Codable {
         swingMan: Player?
     ) -> Int {
         var birdieCount = 0
+        
+        // Helper function to count birdies
+        func countBirdies(score: Int, par: Int) -> Int {
+            let underPar = par - score
+            if underPar > 0 {
+                return underPar  // Will return 1 for birdie, 2 for eagle, 3 for double eagle
+            }
+            return 0
+        }
+        
+        // Helper function to get score value
+        func getScore(scoreStr: String, par: Int) -> Int? {
+            if scoreStr == "X" || scoreStr == "❌" {
+                return par * 2
+            }
+            return Int(scoreStr)
+        }
+        
         for holeIndex in 0..<18 {
             let par = teeBox.holes[holeIndex].par
             // Count team members' birdies
             for player in team {
                 if let scoreStr = scores[player.id]?[holeIndex],
-                   let score = Int(scoreStr),
-                   score < par {
-                    birdieCount += 1
+                   let score = getScore(scoreStr: scoreStr, par: par) {
+                    birdieCount += countBirdies(score: score, par: par)
                 }
             }
-            // Always count swing man's birdies if present
+            // Always count swing man's birdies for ALL teams
             if let swingMan = swingMan,
                let scoreStr = scores[swingMan.id]?[holeIndex],
-               let score = Int(scoreStr),
-               score < par {
-                birdieCount += 1
+               let score = getScore(scoreStr: scoreStr, par: par) {
+                birdieCount += countBirdies(score: score, par: par)
             }
         }
         return birdieCount
@@ -656,29 +738,29 @@ public struct AlabamaBet: Identifiable, Codable {
         scores: [UUID: [String]],
         teeBox: TeeBox
     ) -> TeamResults {
-        // Calculate Alabama front 9
-        let playerTeamFront9 = calculateTeamScore(
-            team: teams[playerTeamIndex],
-            holes: 0..<9,
-            scores: scores,
-            teeBox: teeBox,
-            swingMan: swingMan
-        )
-        let otherTeamFront9 = calculateTeamScore(
-            team: teams[otherTeamIndex],
-            holes: 0..<9,
-            scores: scores,
-            teeBox: teeBox,
-            swingMan: swingMan
-        )
-        
-        // Calculate team sizes
+        // Calculate team sizes (only used for winnings adjustment)
         let playerTeamSize = teams[playerTeamIndex].count + 
             (swingManTeamIndex == playerTeamIndex ? 1 : 0)
         let otherTeamSize = teams[otherTeamIndex].count + 
             (swingManTeamIndex == otherTeamIndex ? 1 : 0)
         
-        // Calculate front 9 total
+        // Calculate Alabama front 9 (Swing Man counts for both teams)
+        let playerTeamFront9 = calculateTeamScore(
+            team: teams[playerTeamIndex],
+            holes: 0..<9,  // Front 9 holes are 1-9
+            scores: scores,
+            teeBox: teeBox,
+            swingMan: swingMan  // Swing Man counts for all teams
+        )
+        let otherTeamFront9 = calculateTeamScore(
+            team: teams[otherTeamIndex],
+            holes: 0..<9,  // Front 9 holes are 1-9
+            scores: scores,
+            teeBox: teeBox,
+            swingMan: swingMan  // Swing Man counts for all teams
+        )
+        
+        // Calculate front 9 total (adjust winnings based on team size)
         let front9Total: Double = if playerTeamFront9 < otherTeamFront9 {
             // Win - if winning team is smaller, they get more per player
             if playerTeamSize < otherTeamSize {
@@ -697,32 +779,30 @@ public struct AlabamaBet: Identifiable, Codable {
             0
         }
         
-        // Calculate Alabama back 9
+        // Calculate Alabama back 9 (Swing Man counts for both teams)
         let playerTeamBack9 = calculateTeamScore(
             team: teams[playerTeamIndex],
-            holes: 9..<18,
+            holes: 9..<18,  // Back 9 holes are 10-18
             scores: scores,
             teeBox: teeBox,
-            swingMan: swingMan
+            swingMan: swingMan  // Swing Man counts for all teams
         )
         let otherTeamBack9 = calculateTeamScore(
             team: teams[otherTeamIndex],
-            holes: 9..<18,
+            holes: 9..<18,  // Back 9 holes are 10-18
             scores: scores,
             teeBox: teeBox,
-            swingMan: swingMan
+            swingMan: swingMan  // Swing Man counts for all teams
         )
         
-        // Calculate back 9 total
+        // Calculate back 9 total (adjust winnings based on team size)
         let back9Total: Double = if playerTeamBack9 < otherTeamBack9 {
-            // Win - if winning team is smaller, they get more per player
             if playerTeamSize < otherTeamSize {
                 (backNineAmount * Double(otherTeamSize)) / Double(playerTeamSize)
             } else {
                 backNineAmount
             }
         } else if playerTeamBack9 > otherTeamBack9 {
-            // Loss - if losing team is smaller, they pay more per player
             if playerTeamSize < otherTeamSize {
                 -(backNineAmount * Double(otherTeamSize)) / Double(playerTeamSize)
             } else {
@@ -732,11 +812,54 @@ public struct AlabamaBet: Identifiable, Codable {
             0
         }
         
-        // Calculate Low Ball totals with updated function
+        // Calculate birdies (Swing Man counts for both teams)
+        let playerTeamBirdies = countTeamBirdies(
+            team: teams[playerTeamIndex],
+            scores: scores,
+            teeBox: teeBox,
+            swingMan: swingMan  // Swing Man counts for all teams
+        )
+        let otherTeamBirdies = countTeamBirdies(
+            team: teams[otherTeamIndex],
+            scores: scores,
+            teeBox: teeBox,
+            swingMan: swingMan  // Swing Man counts for all teams
+        )
+        
+        // Calculate birdie differential and adjust winnings based on team size
+        let birdieDiff = playerTeamBirdies - otherTeamBirdies
+        let birdieTotal: Double = if birdieDiff > 0 {
+            if playerTeamSize < otherTeamSize {
+                (Double(birdieDiff) * perBirdieAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                Double(birdieDiff) * perBirdieAmount
+            }
+        } else if birdieDiff < 0 {
+            if playerTeamSize < otherTeamSize {
+                (Double(birdieDiff) * perBirdieAmount * Double(otherTeamSize)) / Double(playerTeamSize)
+            } else {
+                Double(birdieDiff) * perBirdieAmount
+            }
+        } else {
+            0
+        }
+        
+        // Calculate Low Ball totals
         let lowBallFront9Score = calculateLowBallTotal(
             team: teams[playerTeamIndex],
             otherTeam: teams[otherTeamIndex],
-            holes: 0..<9,
+            holes: 0..<9,  // Front 9 holes are 1-9
+            scores: scores,
+            swingMan: swingMan,
+            swingManTeamIndex: swingManTeamIndex,
+            teamIndex: playerTeamIndex,
+            teeBox: teeBox
+        )
+        
+        let lowBallBack9Score = calculateLowBallTotal(
+            team: teams[playerTeamIndex],
+            otherTeam: teams[otherTeamIndex],
+            holes: 9..<18,  // Back 9 holes are 10-18
             scores: scores,
             swingMan: swingMan,
             swingManTeamIndex: swingManTeamIndex,
@@ -746,14 +869,12 @@ public struct AlabamaBet: Identifiable, Codable {
         
         // Calculate front 9 low ball
         let lowBallFront9: Double = if lowBallFront9Score > 0 {
-            // Win - if winning team is smaller, they get more per player
             if playerTeamSize < otherTeamSize {
                 (lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
             } else {
                 lowBallAmount
             }
         } else if lowBallFront9Score < 0 {
-            // Loss - if losing team is smaller, they pay more per player
             if playerTeamSize < otherTeamSize {
                 -(lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
             } else {
@@ -763,64 +884,18 @@ public struct AlabamaBet: Identifiable, Codable {
             0
         }
         
-        let lowBallBack9Score = calculateLowBallTotal(
-            team: teams[playerTeamIndex],
-            otherTeam: teams[otherTeamIndex],
-            holes: 9..<18,
-            scores: scores,
-            swingMan: swingMan,
-            swingManTeamIndex: swingManTeamIndex,
-            teamIndex: playerTeamIndex,
-            teeBox: teeBox
-        )
-        
         // Calculate back 9 low ball
         let lowBallBack9: Double = if lowBallBack9Score > 0 {
-            // Win - if winning team is smaller, they get more per player
             if playerTeamSize < otherTeamSize {
                 (lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
             } else {
                 lowBallAmount
             }
         } else if lowBallBack9Score < 0 {
-            // Loss - if losing team is smaller, they pay more per player
             if playerTeamSize < otherTeamSize {
                 -(lowBallAmount * Double(otherTeamSize)) / Double(playerTeamSize)
             } else {
                 -lowBallAmount
-            }
-        } else {
-            0
-        }
-        
-        // Calculate birdies
-        let playerTeamBirdies = countTeamBirdies(
-            team: teams[playerTeamIndex],
-            scores: scores,
-            teeBox: teeBox,
-            swingMan: swingMan
-        )
-        let otherTeamBirdies = countTeamBirdies(
-            team: teams[otherTeamIndex],
-            scores: scores,
-            teeBox: teeBox,
-            swingMan: swingMan
-        )
-        
-        let birdieDiff = playerTeamBirdies - otherTeamBirdies
-        let birdieTotal: Double = if birdieDiff > 0 {
-            // Win - if winning team is smaller, they get more per player
-            if playerTeamSize < otherTeamSize {
-                (Double(birdieDiff) * perBirdieAmount * Double(otherTeamSize)) / Double(playerTeamSize)
-            } else {
-                Double(birdieDiff) * perBirdieAmount
-            }
-        } else if birdieDiff < 0 {
-            // Loss - if losing team is smaller, they pay more per player
-            if playerTeamSize < otherTeamSize {
-                (Double(birdieDiff) * perBirdieAmount * Double(otherTeamSize)) / Double(playerTeamSize)
-            } else {
-                Double(birdieDiff) * perBirdieAmount
             }
         } else {
             0
@@ -867,7 +942,7 @@ public struct AlabamaBet: Identifiable, Codable {
                     winnings[player.id, default: 0] += results.total
                 }
                 
-                // Add winnings for swing man if applicable
+                // Add winnings for swing man if they are playing with this team
                 if let swingMan = swingMan, swingManTeamIndex == teamIndex {
                     winnings[swingMan.id, default: 0] += results.total
                 }
